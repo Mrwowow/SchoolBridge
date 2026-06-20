@@ -35,3 +35,6 @@ export type NotificationChannel = z.infer<typeof NotificationChannel>;
 
 export const SchoolPlan = z.enum(['TRIAL', 'BASIC', 'STANDARD', 'PREMIUM']);
 export type SchoolPlan = z.infer<typeof SchoolPlan>;
+
+export const SchoolStatus = z.enum(['ACTIVE', 'SUSPENDED', 'CHURNED']);
+export type SchoolStatus = z.infer<typeof SchoolStatus>;

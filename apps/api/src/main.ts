@@ -1,13 +1,14 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { patchNestJsSwagger } from 'nestjs-zod';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -23,16 +24,16 @@ async function bootstrap() {
   });
 
   // ── Global pipes & filters ────────────────────────────────────────────────
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  // Validates every createZodDto() body/query against its Zod schema and
+  // passes non-Zod arguments through untouched.
+  app.useGlobalPipes(new ZodValidationPipe());
   app.useGlobalFilters(new AllExceptionsFilter());
 
   // ── Swagger ───────────────────────────────────────────────────────────────
+  // Teach @nestjs/swagger how to derive OpenAPI schemas from Zod-based DTOs
+  // (createZodDto classes), so request bodies & query params render fully.
+  patchNestJsSwagger();
+
   const config = new DocumentBuilder()
     .setTitle('SchoolBridge API')
     .setDescription('Digital parent–teacher communication platform for Nigerian schools')

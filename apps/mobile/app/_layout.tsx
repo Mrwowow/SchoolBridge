@@ -90,11 +90,7 @@ function NotificationSetup({ children }: { children: React.ReactNode }) {
       });
 
     return () => {
-      if (responseListenerRef.current) {
-        Notifications.removeNotificationSubscription(
-          responseListenerRef.current,
-        );
-      }
+      responseListenerRef.current?.remove();
     };
   }, [isAuthenticated, router]);
 

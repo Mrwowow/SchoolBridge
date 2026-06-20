@@ -1,28 +1,25 @@
-import { PipeTransform, ArgumentMetadata, BadRequestException } from '@nestjs/common';
-import { ZodSchema, ZodError } from 'zod';
+import { BadRequestException } from '@nestjs/common';
+import { createZodValidationPipe } from 'nestjs-zod';
+import { ZodError } from 'zod';
 
 /**
- * ZodValidationPipe validates incoming data against a Zod schema from
- * @schoolbridge/types. Usage:
+ * Global validation pipe for Zod-based DTOs (createZodDto classes from
+ * `common/dto`). It reads the Zod schema attached to each DTO class by
+ * `nestjs-zod`, validates the incoming body/query against it, and on failure
+ * throws a BadRequestException with our standard shape:
  *
- *   @Body(new ZodValidationPipe(LoginDto))
- *   body: LoginDto
+ *   { message: 'Validation failed', errors: [{ field, message }] }
  *
- * This keeps DTO validation co-located with the shared contract types rather
- * than duplicated in class-validator decorators.
+ * Non-Zod arguments (primitive @Param/@Query, plain classes) pass through
+ * untouched, so it is safe to register globally.
  */
-export class ZodValidationPipe implements PipeTransform {
-  constructor(private readonly schema: ZodSchema) {}
-
-  transform(value: unknown, _metadata: ArgumentMetadata): unknown {
-    const result = this.schema.safeParse(value);
-    if (!result.success) {
-      const errors = (result.error as ZodError).errors.map((e) => ({
+export const ZodValidationPipe = createZodValidationPipe({
+  createValidationException: (error: ZodError) =>
+    new BadRequestException({
+      message: 'Validation failed',
+      errors: error.errors.map((e) => ({
         field: e.path.join('.'),
         message: e.message,
-      }));
-      throw new BadRequestException({ message: 'Validation failed', errors });
-    }
-    return result.data;
-  }
-}
+      })),
+    }),
+});

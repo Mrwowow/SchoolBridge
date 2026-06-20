@@ -1,5 +1,5 @@
 import { Controller, Get, Delete, Param, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader, ApiParam } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -16,6 +16,7 @@ export class UsersController {
 
   @Get()
   @Roles('SUPER_ADMIN', 'SCHOOL_ADMIN')
+  @ApiParam({ name: 'schoolId', description: 'School tenant ID' })
   @ApiOperation({ summary: 'List all users in a school' })
   list(@Param('schoolId') schoolId: string) {
     return this.usersService.listBySchool(schoolId);
@@ -23,6 +24,8 @@ export class UsersController {
 
   @Get(':id')
   @Roles('SUPER_ADMIN', 'SCHOOL_ADMIN')
+  @ApiParam({ name: 'schoolId', description: 'School tenant ID' })
+  @ApiParam({ name: 'id', description: 'User ID' })
   @ApiOperation({ summary: 'Get a user by ID' })
   findOne(@Param('id') id: string) {
     return this.usersService.findById(id);
@@ -30,6 +33,8 @@ export class UsersController {
 
   @Delete(':id')
   @Roles('SUPER_ADMIN', 'SCHOOL_ADMIN')
+  @ApiParam({ name: 'schoolId', description: 'School tenant ID' })
+  @ApiParam({ name: 'id', description: 'User ID' })
   @ApiOperation({ summary: 'Soft-delete a user' })
   remove(@Param('id') id: string) {
     return this.usersService.softDelete(id);

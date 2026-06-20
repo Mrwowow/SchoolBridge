@@ -2,6 +2,14 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# Force SDK 55-consistent versions across the tree. expo-router@55 requires
+# @expo/metro-runtime ^55.0.11, and some transitive deps pull SDK 56 builds of
+# expo-linking/expo-constants, causing duplicate native modules.
+overrides:
+  '@expo/metro-runtime': '55.0.11'
+  expo-linking: '~55.0.15'
+  expo-constants: '~55.0.16'
+
 allowBuilds:
   '@nestjs/core': true
   '@prisma/client': true

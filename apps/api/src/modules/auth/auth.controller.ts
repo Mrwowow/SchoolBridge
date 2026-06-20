@@ -20,13 +20,12 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import {
   RegisterDto,
   LoginDto,
   RequestOtpDto,
   VerifyOtpDto,
-} from '@schoolbridge/types';
+} from '../../common/dto';
 import type { SessionUser } from '@schoolbridge/types';
 
 @ApiTags('auth')
@@ -39,7 +38,7 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Create a new user account' })
   @ApiCreatedResponse({ description: 'Returns JWT access + refresh tokens' })
-  register(@Body(new ZodValidationPipe(RegisterDto)) dto: RegisterDto) {
+  register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
@@ -48,7 +47,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Authenticate with phone + password' })
   @ApiOkResponse({ description: 'Returns JWT access + refresh tokens' })
-  login(@Body(new ZodValidationPipe(LoginDto)) dto: LoginDto) {
+  login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
   }
 
@@ -56,7 +55,7 @@ export class AuthController {
   @Post('request-otp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request a one-time password via SMS' })
-  requestOtp(@Body(new ZodValidationPipe(RequestOtpDto)) dto: RequestOtpDto) {
+  requestOtp(@Body() dto: RequestOtpDto) {
     return this.authService.requestOtp(dto);
   }
 
@@ -64,7 +63,7 @@ export class AuthController {
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify OTP and receive tokens' })
-  verifyOtp(@Body(new ZodValidationPipe(VerifyOtpDto)) dto: VerifyOtpDto) {
+  verifyOtp(@Body() dto: VerifyOtpDto) {
     return this.authService.verifyOtp(dto);
   }
 

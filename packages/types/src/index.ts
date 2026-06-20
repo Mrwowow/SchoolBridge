@@ -7,4 +7,5 @@
 export * from './enums';
 export * from './auth';
 export * from './messages';
+export * from './schools';
 export * from './pagination';
