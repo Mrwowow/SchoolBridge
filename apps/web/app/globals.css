@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand: #2F6BFF;
+    --brand-dark: #1341d6;
+    --brand-light: #eef3ff;
+    --surface: #F8FAFF;
+    --text-primary: #0f1729;
+    --text-secondary: #4b5675;
+    --border: #e2e8f4;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-white text-gray-900;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+}
+
+@layer components {
+  .section-pad {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+
+  .container-max {
+    @apply mx-auto max-w-7xl;
+  }
+
+  .gradient-hero {
+    background: linear-gradient(135deg, #f0f5ff 0%, #fafcff 50%, #f0f5ff 100%);
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #2F6BFF 0%, #1341d6 100%);
+  }
+}

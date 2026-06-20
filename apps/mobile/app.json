@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "SchoolBridge",
+    "slug": "schoolbridge",
+    "version": "1.0.0",
+    "scheme": "schoolbridge",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2F6BFF"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.schoolbridge.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "SchoolBridge uses the camera to upload photos.",
+        "NSPhotoLibraryUsageDescription": "SchoolBridge accesses your photos to upload attachments."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2F6BFF"
+      },
+      "package": "com.schoolbridge.app",
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#2F6BFF",
+          "defaultChannel": "schoolbridge"
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

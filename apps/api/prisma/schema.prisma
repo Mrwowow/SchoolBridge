@@ -1,0 +1,571 @@
+// ─── Prisma Schema — SchoolBridge ───────────────────────────────────────────
+// Multi-tenant school communication platform.
+// Each School is a tenant; all cross-tenant data is scoped by schoolId.
+// IDs use cuid() for URL-safe, time-ordered identifiers.
+// Soft-delete is applied via deletedAt where sensible (users, pupils, messages).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums (mirror @schoolbridge/types) ─────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  SCHOOL_ADMIN
+  CLASS_TEACHER
+  TEACHER
+  PARENT
+}
+
+enum MessageType {
+  NOTE
+  HOMEWORK
+  BEHAVIOUR
+  ATTENDANCE
+  RESULT
+  ANNOUNCEMENT
+  FEE_REMINDER
+  EVENT
+}
+
+enum MessageTarget {
+  PUPIL
+  CLASS
+  SCHOOL
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum NotificationChannel {
+  PUSH
+  SMS
+  EMAIL
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  DELIVERED
+}
+
+enum SchoolPlan {
+  TRIAL
+  BASIC
+  STANDARD
+  PREMIUM
+}
+
+enum SchoolStatus {
+  ACTIVE
+  SUSPENDED
+  CHURNED
+}
+
+enum GuardianRelationship {
+  FATHER
+  MOTHER
+  GUARDIAN
+  SIBLING
+  OTHER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  TRIALING
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+// ─── School (tenant root) ───────────────────────────────────────────────────
+
+model School {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  plan        SchoolPlan   @default(TRIAL)
+  status      SchoolStatus @default(ACTIVE)
+  /// Flexible settings bag: address, logo URL, timezone, etc.
+  settings    Json         @default("{}")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  memberships   Membership[]
+  academicYears AcademicYear[]
+  classRooms    ClassRoom[]
+  subjects      Subject[]
+  pupils        Pupil[]
+  messages      Message[]
+  notifications Notification[]
+  subscriptions Subscription[]
+  auditLogs     AuditLog[]
+  feeInvoices   FeeInvoice[]
+
+  @@index([status])
+  @@map("schools")
+}
+
+// ─── User ───────────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(cuid())
+  fullName     String
+  phone        String    @unique
+  email        String?   @unique
+  passwordHash String
+  locale       String    @default("en")
+  /// Null until phone is verified via OTP
+  phoneVerifiedAt DateTime?
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  memberships      Membership[]
+  otpCodes         OtpCode[]
+  guardianLinks    GuardianLink[]
+  authoredMessages Message[]      @relation("MessageAuthor")
+  replies          Reply[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  refreshTokens    RefreshToken[]
+
+  @@index([phone])
+  @@index([email])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+// ─── Membership (User ↔ School ↔ Role) ─────────────────────────────────────
+
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  schoolId  String
+  role      Role
+  joinedAt  DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, schoolId, role])
+  @@index([schoolId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+// ─── Auth: OTP + Refresh Tokens ─────────────────────────────────────────────
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("otp_codes")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+// ─── Academic Structure ──────────────────────────────────────────────────────
+
+model AcademicYear {
+  id        String   @id @default(cuid())
+  schoolId  String
+  label     String   // e.g. "2024/2025"
+  startDate DateTime
+  endDate   DateTime
+  isCurrent Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  terms  Term[]
+
+  @@unique([schoolId, label])
+  @@index([schoolId, isCurrent])
+  @@map("academic_years")
+}
+
+model Term {
+  id             String   @id @default(cuid())
+  academicYearId String
+  schoolId       String
+  label          String   // e.g. "First Term"
+  startDate      DateTime
+  endDate        DateTime
+  isCurrent      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  academicYear      AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  attendances       Attendance[]
+  assessmentResults AssessmentResult[]
+
+  @@unique([academicYearId, label])
+  @@index([schoolId, isCurrent])
+  @@map("terms")
+}
+
+// ─── ClassRoom ───────────────────────────────────────────────────────────────
+
+model ClassRoom {
+  id             String   @id @default(cuid())
+  schoolId       String
+  name           String   // e.g. "JSS 1A"
+  classTeacherId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  enrollments  Enrollment[]
+  messages     Message[]
+  attendances  Attendance[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@map("class_rooms")
+}
+
+// ─── Subject ─────────────────────────────────────────────────────────────────
+
+model Subject {
+  id        String   @id @default(cuid())
+  schoolId  String
+  name      String
+  createdAt DateTime @default(now())
+
+  school            School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  assessmentResults AssessmentResult[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@map("subjects")
+}
+
+// ─── Pupil ───────────────────────────────────────────────────────────────────
+
+model Pupil {
+  id            String    @id @default(cuid())
+  schoolId      String
+  fullName      String
+  dateOfBirth   DateTime?
+  gender        String?
+  admissionNo   String?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  school            School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  guardianLinks     GuardianLink[]
+  enrollments       Enrollment[]
+  messages          Message[]
+  messageReceipts   MessageReceipt[]
+  attendances       Attendance[]
+  assessmentResults AssessmentResult[]
+  feeInvoices       FeeInvoice[]
+
+  @@unique([schoolId, admissionNo])
+  @@index([schoolId])
+  @@index([deletedAt])
+  @@map("pupils")
+}
+
+// ─── Guardian Link (Pupil ↔ User w/ relationship) ────────────────────────────
+
+model GuardianLink {
+  id           String               @id @default(cuid())
+  pupilId      String
+  userId       String
+  relationship GuardianRelationship @default(GUARDIAN)
+  isPrimary    Boolean              @default(false)
+  createdAt    DateTime             @default(now())
+
+  pupil Pupil @relation(fields: [pupilId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pupilId, userId])
+  @@index([userId])
+  @@index([pupilId])
+  @@map("guardian_links")
+}
+
+// ─── Enrollment (Pupil ↔ ClassRoom per term) ────────────────────────────────
+
+model Enrollment {
+  id          String   @id @default(cuid())
+  pupilId     String
+  classRoomId String
+  enrolledAt  DateTime @default(now())
+  leftAt      DateTime?
+
+  pupil     Pupil     @relation(fields: [pupilId], references: [id], onDelete: Cascade)
+  classRoom ClassRoom @relation(fields: [classRoomId], references: [id], onDelete: Cascade)
+
+  @@unique([pupilId, classRoomId])
+  @@index([classRoomId])
+  @@map("enrollments")
+}
+
+// ─── Message (digital booklet entry) ────────────────────────────────────────
+
+model Message {
+  id          String        @id @default(cuid())
+  schoolId    String
+  authorId    String
+  type        MessageType
+  target      MessageTarget
+  /// Populated when target = PUPIL
+  pupilId     String?
+  /// Populated when target = CLASS
+  classRoomId String?
+  title       String
+  body        String?
+  /// Object-store keys for uploaded attachments
+  attachments String[]      @default([])
+  dueAt       DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  school    School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  author    User             @relation("MessageAuthor", fields: [authorId], references: [id])
+  pupil     Pupil?           @relation(fields: [pupilId], references: [id])
+  classRoom ClassRoom?       @relation(fields: [classRoomId], references: [id])
+  receipts  MessageReceipt[]
+  replies   Reply[]
+
+  @@index([schoolId, createdAt(sort: Desc)])
+  @@index([schoolId, pupilId])
+  @@index([schoolId, classRoomId])
+  @@index([authorId])
+  @@index([deletedAt])
+  @@map("messages")
+}
+
+// ─── MessageReceipt (per-recipient read/ack tracking) ───────────────────────
+
+model MessageReceipt {
+  id             String    @id @default(cuid())
+  messageId      String
+  pupilId        String
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  acknowledgedAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pupil   Pupil   @relation(fields: [pupilId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, pupilId])
+  @@index([pupilId])
+  @@map("message_receipts")
+}
+
+// ─── Reply (threaded on Message) ─────────────────────────────────────────────
+
+model Reply {
+  id        String   @id @default(cuid())
+  messageId String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  author  User    @relation(fields: [authorId], references: [id])
+
+  @@index([messageId])
+  @@index([authorId])
+  @@map("replies")
+}
+
+// ─── Attendance ──────────────────────────────────────────────────────────────
+
+model Attendance {
+  id          String           @id @default(cuid())
+  schoolId    String
+  termId      String
+  classRoomId String
+  pupilId     String
+  date        DateTime         @db.Date
+  status      AttendanceStatus
+  note        String?
+  recordedBy  String
+  createdAt   DateTime         @default(now())
+
+  term      Term      @relation(fields: [termId], references: [id])
+  classRoom ClassRoom @relation(fields: [classRoomId], references: [id])
+  pupil     Pupil     @relation(fields: [pupilId], references: [id])
+
+  @@unique([pupilId, date])
+  @@index([classRoomId, date])
+  @@index([termId])
+  @@map("attendances")
+}
+
+// ─── AssessmentResult ────────────────────────────────────────────────────────
+
+model AssessmentResult {
+  id        String   @id @default(cuid())
+  schoolId  String
+  termId    String
+  pupilId   String
+  subjectId String
+  score     Decimal  @db.Decimal(5, 2)
+  maxScore  Decimal  @db.Decimal(5, 2)
+  grade     String?
+  remarks   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  term    Term    @relation(fields: [termId], references: [id])
+  pupil   Pupil   @relation(fields: [pupilId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@unique([termId, pupilId, subjectId])
+  @@index([pupilId])
+  @@index([termId])
+  @@map("assessment_results")
+}
+
+// ─── FeeInvoice & Payment ────────────────────────────────────────────────────
+
+model FeeInvoice {
+  id          String        @id @default(cuid())
+  schoolId    String
+  pupilId     String
+  description String
+  amountKobo  BigInt
+  dueAt       DateTime
+  status      PaymentStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  school   School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  pupil    Pupil     @relation(fields: [pupilId], references: [id])
+  payments Payment[]
+
+  @@index([schoolId])
+  @@index([pupilId])
+  @@map("fee_invoices")
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  feeInvoiceId    String
+  reference       String        @unique
+  amountKobo      BigInt
+  status          PaymentStatus @default(PENDING)
+  /// Paystack or other gateway name
+  gateway         String        @default("paystack")
+  gatewayMetadata Json          @default("{}")
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+
+  feeInvoice FeeInvoice @relation(fields: [feeInvoiceId], references: [id])
+
+  @@index([feeInvoiceId])
+  @@map("payments")
+}
+
+// ─── Subscription (school billing) ──────────────────────────────────────────
+
+model Subscription {
+  id               String             @id @default(cuid())
+  schoolId         String
+  plan             SchoolPlan
+  status           SubscriptionStatus @default(TRIALING)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  paystackSubCode  String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@map("subscriptions")
+}
+
+// ─── Notification ────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String              @id @default(cuid())
+  schoolId  String
+  userId    String
+  channel   NotificationChannel
+  status    NotificationStatus  @default(PENDING)
+  title     String
+  body      String
+  data      Json                @default("{}")
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([schoolId])
+  @@index([status])
+  @@map("notifications")
+}
+
+// ─── AuditLog ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  schoolId  String?
+  userId    String?
+  action    String
+  resource  String
+  resourceId String?
+  meta      Json     @default("{}")
+  ip        String?
+  createdAt DateTime @default(now())
+
+  school School? @relation(fields: [schoolId], references: [id])
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@index([schoolId, createdAt(sort: Desc)])
+  @@index([userId])
+  @@index([resource, resourceId])
+  @@map("audit_logs")
+}

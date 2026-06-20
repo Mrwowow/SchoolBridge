@@ -1,0 +1,13 @@
+{
+  "extends": "@schoolbridge/config/tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "declaration": true,
+    "sourceMap": true,
+    "noEmit": false
+  },
+  "include": ["src"]
+}
