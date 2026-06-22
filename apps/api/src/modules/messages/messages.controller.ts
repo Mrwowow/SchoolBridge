@@ -24,10 +24,12 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { GuardianAccessService } from '../../common/guardian/guardian-access.service';
 import {
   CreateMessageDto,
   ReplyDto,
   PaginationQueryDto,
+  SubmitHomeworkDto,
 } from '../../common/dto';
 import type { SessionUser } from '@schoolbridge/types';
 
@@ -37,7 +39,10 @@ import type { SessionUser } from '@schoolbridge/types';
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 @Controller('schools/:schoolId/messages')
 export class MessagesController {
-  constructor(private readonly messagesService: MessagesService) {}
+  constructor(
+    private readonly messagesService: MessagesService,
+    private readonly guardian: GuardianAccessService,
+  ) {}
 
   @Post()
   @Roles('SCHOOL_ADMIN', 'CLASS_TEACHER', 'TEACHER')
@@ -62,6 +67,42 @@ export class MessagesController {
     @Query() query: PaginationQueryDto,
   ) {
     return this.messagesService.listPupilFeed(schoolId, pupilId, query);
+  }
+
+  @Get('inbox')
+  @Roles('SCHOOL_ADMIN', 'CLASS_TEACHER', 'TEACHER')
+  @ApiParam({ name: 'schoolId', description: 'School tenant ID' })
+  @ApiOperation({ summary: 'Teacher inbox — conversation threads grouped by pupil' })
+  inbox(@Param('schoolId') schoolId: string, @CurrentUser() user: SessionUser) {
+    return this.messagesService.inbox(schoolId, user.id);
+  }
+
+  @Get('homework-status')
+  @Roles('SCHOOL_ADMIN', 'CLASS_TEACHER', 'TEACHER')
+  @ApiParam({ name: 'schoolId', description: 'School tenant ID' })
+  @ApiOperation({ summary: 'Homework submission counts (submitted/total) for a class' })
+  homeworkStatus(
+    @Param('schoolId') schoolId: string,
+    @Query('classId') classId: string,
+  ) {
+    return this.messagesService.homeworkStatus(schoolId, classId);
+  }
+
+  @Post(':id/submit')
+  @Roles('PARENT', 'SCHOOL_ADMIN', 'CLASS_TEACHER', 'TEACHER')
+  @ApiParam({ name: 'schoolId', description: 'School tenant ID' })
+  @ApiParam({ name: 'id', description: 'Homework message ID' })
+  @ApiOperation({ summary: 'Mark a homework message submitted for a pupil' })
+  submitHomework(
+    @Param('schoolId') schoolId: string,
+    @Param('id') id: string,
+    @CurrentUser() user: SessionUser,
+    @Body() dto: SubmitHomeworkDto,
+  ) {
+    return this.messagesService.submitHomework(schoolId, id, dto.pupilId, {
+      id: user.id,
+      isElevated: this.guardian.isElevated(user, schoolId),
+    });
   }
 
   @Get(':id')

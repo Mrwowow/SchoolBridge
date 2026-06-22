@@ -12,6 +12,7 @@ import {
   ArrowRight,
   CheckCircle,
 } from 'lucide-react';
+import { Logo } from '@/components/ui';
 import { SectionHeading } from './_components/SectionHeading';
 import { FeatureCard } from './_components/FeatureCard';
 import { PricingCard } from './_components/PricingCard';
@@ -89,9 +90,8 @@ function Hero() {
             <div className="flex h-64 sm:h-80">
               {/* Mini sidebar */}
               <div className="hidden w-44 shrink-0 border-r border-gray-100 bg-white p-4 sm:block">
-                <div className="mb-4 flex items-center gap-2">
-                  <span className="h-6 w-6 rounded bg-brand-500" aria-hidden />
-                  <span className="text-xs font-semibold text-gray-700">SchoolBridge</span>
+                <div className="mb-4 flex items-center">
+                  <Logo kind="lockup" color="brand" height={28} />
                 </div>
                 {['Overview', 'Pupils', 'Messages', 'Attendance', 'Results', 'Fees'].map(
                   (item, i) => (

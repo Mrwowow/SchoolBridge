@@ -19,8 +19,11 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
-// 3. Disable the "server" package field so that browser-only overrides in
-//    packages don't shadow React Native code paths
-config.resolver.unstable_enablePackageExports = false;
+// 3. Enable package "exports" resolution. react-query (and other modern libs)
+//    rely on the exports map to pick ONE consistent build. With it disabled,
+//    Metro falls back to legacy main/react-native fields, which can resolve the
+//    QueryClientProvider and the consumer hooks to DIFFERENT builds — two
+//    QueryClientContext objects → "No QueryClient set".
+config.resolver.unstable_enablePackageExports = true;
 
 module.exports = config;

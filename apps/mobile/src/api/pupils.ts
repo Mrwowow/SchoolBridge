@@ -1,29 +1,47 @@
 /**
  * src/api/pupils.ts
- * Pupil / children API calls.
+ * Parent-facing pupil reads (children, day summary, progress) and teacher
+ * writes (day notes, behaviour ratings, badges). All school-scoped.
  */
+import type {
+  ChildSummary,
+  DaySummaryView,
+  ProgressView,
+  UpsertDaySubjectNoteDto,
+  UpsertBehaviourRatingDto,
+  CreatePupilBadgeDto,
+} from '@schoolbridge/types';
 import { api } from './client';
+import { schoolPath } from './tenant';
 
-export interface PupilSummary {
-  id: string;
-  fullName: string;
-  admissionNumber: string;
-  className: string;
-  classId: string;
-  avatarUrl: string | null;
-  /** Unread message count for badge */
-  unreadCount: number;
-}
+/** Re-export for screens that referenced the old name. */
+export type PupilSummary = ChildSummary;
 
 export const pupilsApi = {
-  /**
-   * Returns the list of pupils linked to the authenticated parent.
-   * TODO: confirm endpoint path with backend — assumed /parents/me/pupils
-   */
-  getMyChildren: (): Promise<PupilSummary[]> =>
-    api.get<PupilSummary[]>('/parents/me/pupils'),
+  /** Pupils linked to the authenticated parent. */
+  getMyChildren: (): Promise<ChildSummary[]> =>
+    api.get(schoolPath('/parents/me/pupils')),
 
-  /** Single pupil detail */
-  getPupil: (pupilId: string): Promise<PupilSummary> =>
-    api.get<PupilSummary>(`/pupils/${pupilId}`),
+  /** A pupil's "today" report (attendance, subjects, behaviour). */
+  getDaySummary: (pupilId: string, date?: string): Promise<DaySummaryView> =>
+    api.get(
+      schoolPath(`/parents/${pupilId}/day-summary${date ? `?date=${date}` : ''}`),
+    ),
+
+  /** A pupil's term progress / report card. */
+  getProgress: (pupilId: string, termId?: string): Promise<ProgressView> =>
+    api.get(
+      schoolPath(`/parents/${pupilId}/progress${termId ? `?termId=${termId}` : ''}`),
+    ),
+
+  // ── Teacher writes ────────────────────────────────────────────────────────
+
+  upsertDayNote: (pupilId: string, dto: UpsertDaySubjectNoteDto): Promise<unknown> =>
+    api.post(schoolPath(`/pupils/${pupilId}/day-notes`), dto),
+
+  upsertBehaviour: (pupilId: string, dto: UpsertBehaviourRatingDto): Promise<unknown> =>
+    api.post(schoolPath(`/pupils/${pupilId}/behaviour`), dto),
+
+  createBadge: (pupilId: string, dto: CreatePupilBadgeDto): Promise<unknown> =>
+    api.post(schoolPath(`/pupils/${pupilId}/badges`), dto),
 };

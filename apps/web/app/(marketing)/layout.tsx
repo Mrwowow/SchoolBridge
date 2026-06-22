@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Logo } from '@/components/ui';
 
 export const metadata: Metadata = {
   title: 'SchoolBridge — Digital Communication for Nigerian Schools',
@@ -10,13 +11,8 @@ function MarketingNav() {
     <header className="sticky top-0 z-40 w-full border-b border-gray-100 bg-white/80 backdrop-blur-md">
       <div className="container-max section-pad flex h-16 items-center justify-between gap-4">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
-            SB
-          </span>
-          <span className="text-base font-semibold text-gray-900">
-            SchoolBridge
-          </span>
+        <Link href="/" className="flex items-center" aria-label="SchoolBridge home">
+          <Logo kind="lockup" color="brand" height={48} priority />
         </Link>
 
         {/* Desktop nav */}
@@ -58,11 +54,8 @@ function MarketingFooter() {
       <div className="container-max section-pad py-12">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div className="col-span-2 lg:col-span-1">
-            <Link href="/" className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
-                SB
-              </span>
-              <span className="font-semibold text-gray-900">SchoolBridge</span>
+            <Link href="/" className="flex items-center" aria-label="SchoolBridge home">
+              <Logo kind="lockup" color="brand" height={44} />
             </Link>
             <p className="mt-3 text-sm text-gray-500 leading-relaxed">
               Replacing paper communication booklets with instant, digital parent-teacher communication.

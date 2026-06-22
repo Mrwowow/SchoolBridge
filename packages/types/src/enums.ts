@@ -30,6 +30,9 @@ export type MessageTarget = z.infer<typeof MessageTarget>;
 export const AttendanceStatus = z.enum(['PRESENT', 'ABSENT', 'LATE', 'EXCUSED']);
 export type AttendanceStatus = z.infer<typeof AttendanceStatus>;
 
+export const BehaviourLevel = z.enum(['NEEDS_WORK', 'GOOD', 'EXCELLENT']);
+export type BehaviourLevel = z.infer<typeof BehaviourLevel>;
+
 export const NotificationChannel = z.enum(['PUSH', 'SMS', 'EMAIL', 'IN_APP']);
 export type NotificationChannel = z.infer<typeof NotificationChannel>;
 
@@ -38,3 +41,13 @@ export type SchoolPlan = z.infer<typeof SchoolPlan>;
 
 export const SchoolStatus = z.enum(['ACTIVE', 'SUSPENDED', 'CHURNED']);
 export type SchoolStatus = z.infer<typeof SchoolStatus>;
+
+/** A guardian's relationship to a pupil. */
+export const GuardianRelationship = z.enum([
+  'FATHER',
+  'MOTHER',
+  'GUARDIAN',
+  'SIBLING',
+  'OTHER',
+]);
+export type GuardianRelationship = z.infer<typeof GuardianRelationship>;

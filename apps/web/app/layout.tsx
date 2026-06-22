@@ -24,6 +24,9 @@ export const metadata: Metadata = {
     'digital booklet',
   ],
   metadataBase: new URL('https://schoolbridge.ng'),
+  icons: {
+    icon: '/logo-svg/schoolbridge-mark.svg',
+  },
   openGraph: {
     type: 'website',
     locale: 'en_NG',

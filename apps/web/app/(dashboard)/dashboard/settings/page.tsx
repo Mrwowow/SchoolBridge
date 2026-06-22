@@ -1,47 +1,70 @@
-// TODO: wire to GET /school/profile and PATCH /school/profile
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardHeader, CardTitle, Button, Input } from '@/components/ui';
+import { useSchool, useUpdateSchool } from '@/lib/queries';
+import { ApiError } from '@/lib/api';
 
-interface SchoolProfile {
-  name: string;
+interface ProfileSettings {
   phone: string;
   email: string;
   address: string;
   city: string;
   state: string;
-  plan: string;
 }
 
-// TODO: fetch from GET /school/profile
-const MOCK_PROFILE: SchoolProfile = {
-  name:    'Greenfield Academy',
-  phone:   '08012345678',
-  email:   'admin@greenfield.sch.ng',
-  address: '12 Education Close, Victoria Island',
-  city:    'Lagos',
-  state:   'Lagos',
-  plan:    'STANDARD',
-};
+const EMPTY: ProfileSettings = { phone: '', email: '', address: '', city: '', state: '' };
+
+function readSettings(bag: Record<string, unknown> | undefined): ProfileSettings {
+  const s = (bag ?? {}) as Record<string, string | undefined>;
+  return {
+    phone: s.phone ?? '',
+    email: s.email ?? '',
+    address: s.address ?? '',
+    city: s.city ?? '',
+    state: s.state ?? '',
+  };
+}
 
 export default function SettingsPage() {
-  const [profile, setProfile] = useState<SchoolProfile>(MOCK_PROFILE);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const { data: school, isLoading } = useSchool();
+  const updateSchool = useUpdateSchool();
 
-  function set(key: keyof SchoolProfile, value: string) {
+  const [name, setName] = useState('');
+  const [profile, setProfile] = useState<ProfileSettings>(EMPTY);
+  const [saved, setSaved] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Hydrate the form once the school loads.
+  useEffect(() => {
+    if (school) {
+      setName(school.name);
+      setProfile(readSettings(school.settings));
+    }
+  }, [school]);
+
+  function set(key: keyof ProfileSettings, value: string) {
     setProfile((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
-    // TODO: apiFetch('/school/profile', { method: 'PATCH', body: profile })
-    await new Promise((r) => setTimeout(r, 800));
-    setSaving(false);
-    setSaved(true);
+    setFormError(null);
+    setSaved(false);
+    try {
+      await updateSchool.mutateAsync({
+        name: name.trim(),
+        settings: { ...(school?.settings ?? {}), ...profile },
+      });
+      setSaved(true);
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : 'Could not save changes.');
+    }
+  }
+
+  if (isLoading) {
+    return <p className="py-10 text-center text-sm text-gray-400">Loading settings…</p>;
   }
 
   return (
@@ -51,17 +74,24 @@ export default function SettingsPage() {
         <p className="mt-1 text-sm text-gray-500">Manage your school profile and preferences</p>
       </div>
 
-      {/* School Profile */}
       <Card>
         <CardHeader>
           <CardTitle>School Profile</CardTitle>
         </CardHeader>
         <form onSubmit={handleSave} className="flex flex-col gap-5" noValidate>
+          {formError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
+              {formError}
+            </div>
+          )}
           <Input
             label="School name"
             id="school-name"
-            value={profile.name}
-            onChange={(e) => set('name', e.target.value)}
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setSaved(false);
+            }}
             required
           />
           <div className="grid gap-4 sm:grid-cols-2">
@@ -102,17 +132,14 @@ export default function SettingsPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Button type="submit" loading={saving}>
+            <Button type="submit" loading={updateSchool.isPending}>
               Save changes
             </Button>
-            {saved && (
-              <p className="text-sm text-emerald-600 font-medium">Saved!</p>
-            )}
+            {saved && <p className="text-sm font-medium text-emerald-600">Saved!</p>}
           </div>
         </form>
       </Card>
 
-      {/* Plan info */}
       <Card>
         <CardHeader>
           <CardTitle>Subscription</CardTitle>
@@ -120,54 +147,15 @@ export default function SettingsPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-gray-900">
-              Current plan:{' '}
-              <span className="text-brand-600">{profile.plan}</span>
+              Current plan: <span className="text-brand-600">{school?.plan ?? '—'}</span>
             </p>
             <p className="mt-1 text-xs text-gray-500">
-              Renews on 1 August 2025 &bull; ₦24,999/month
+              Status: {school?.status ?? '—'}
             </p>
           </div>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" disabled>
             Upgrade plan
           </Button>
-        </div>
-      </Card>
-
-      {/* Notification channels */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Notification Channels</CardTitle>
-        </CardHeader>
-        <div className="flex flex-col gap-4">
-          {[
-            { label: 'Push notifications', description: 'Send push alerts via the SchoolBridge app', enabled: true },
-            { label: 'SMS fallback',       description: 'Auto-send SMS when push fails (uses credits)', enabled: true },
-            { label: 'Email digest',       description: 'Weekly summary email to school admin', enabled: false },
-          ].map((channel) => (
-            <div key={channel.label} className="flex items-center justify-between py-1">
-              <div>
-                <p className="text-sm font-medium text-gray-900">{channel.label}</p>
-                <p className="text-xs text-gray-500">{channel.description}</p>
-              </div>
-              {/* TODO: wire toggle to PATCH /school/notification-settings */}
-              <button
-                type="button"
-                role="switch"
-                aria-checked={channel.enabled}
-                aria-label={channel.label}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 ${
-                  channel.enabled ? 'bg-brand-500' : 'bg-gray-200'
-                }`}
-              >
-                <span
-                  aria-hidden
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    channel.enabled ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-          ))}
         </div>
       </Card>
     </div>

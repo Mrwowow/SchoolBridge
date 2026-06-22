@@ -11,7 +11,9 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { ZodValidationPipe } from './common/pipes/zod-validation.pipe';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  // rawBody: true preserves the unparsed request body (req.rawBody) so payment
+  // webhooks (Paystack) can verify HMAC signatures against the exact bytes sent.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
 
   // ── Logger ────────────────────────────────────────────────────────────────
   app.useLogger(app.get(Logger));

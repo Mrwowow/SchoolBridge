@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 
 export interface CreateSchoolInput {
   name: string;
@@ -22,13 +23,16 @@ export interface UpdateSchoolInput {
 
 @Injectable()
 export class SchoolsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
-  async create(input: CreateSchoolInput) {
+  async create(input: CreateSchoolInput, actorId?: string) {
     const existing = await this.prisma.school.findUnique({ where: { slug: input.slug } });
     if (existing) throw new ConflictException(`Slug '${input.slug}' is already taken`);
 
-    return this.prisma.school.create({
+    const school = await this.prisma.school.create({
       data: {
         name: input.name,
         slug: input.slug,
@@ -36,6 +40,17 @@ export class SchoolsService {
         settings: (input.settings ?? {}) as Prisma.InputJsonValue,
       },
     });
+
+    await this.audit.log({
+      schoolId: school.id,
+      userId: actorId ?? null,
+      action: 'school.create',
+      resource: 'School',
+      resourceId: school.id,
+      meta: { name: school.name, plan: school.plan },
+    });
+
+    return school;
   }
 
   async findAll() {
@@ -47,6 +62,7 @@ export class SchoolsService {
         plan: true,
         status: true,
         createdAt: true,
+        _count: { select: { memberships: true, pupils: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -65,9 +81,9 @@ export class SchoolsService {
     return school;
   }
 
-  async update(id: string, input: UpdateSchoolInput) {
+  async update(id: string, input: UpdateSchoolInput, actorId?: string) {
     await this.findById(id);
-    return this.prisma.school.update({
+    const school = await this.prisma.school.update({
       where: { id },
       data: {
         ...(input.name ? { name: input.name } : {}),
@@ -76,6 +92,21 @@ export class SchoolsService {
         ...(input.settings ? { settings: input.settings as Prisma.InputJsonValue } : {}),
       },
     });
+
+    await this.audit.log({
+      schoolId: id,
+      userId: actorId ?? null,
+      action: 'school.update',
+      resource: 'School',
+      resourceId: id,
+      meta: {
+        ...(input.plan ? { plan: input.plan } : {}),
+        ...(input.status ? { status: input.status } : {}),
+        ...(input.name ? { renamed: true } : {}),
+      },
+    });
+
+    return school;
   }
 
   async listMembers(schoolId: string) {
