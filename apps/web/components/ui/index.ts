@@ -8,3 +8,5 @@ export { Table, TableHead, TableBody, TableRow, Th, Td } from './Table';
 export { Sidebar } from './Sidebar';
 export { Topbar } from './Topbar';
 export { Logo } from './Logo';
+export { Loader } from './Loader';
+export { SplashGate } from './SplashGate';
