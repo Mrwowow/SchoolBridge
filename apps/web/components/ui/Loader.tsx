@@ -18,7 +18,11 @@ import { useEffect, useRef } from 'react';
 type LoaderProps = {
   /** Cover the whole viewport with the dark brand background. Default true. */
   fullScreen?: boolean;
-  /** Mark height in px; the wordmark scales with it. Default 148. */
+  /**
+   * Mark height in px; the wordmark scales with it. When omitted (default),
+   * the logo sizes fluidly with the viewport via CSS clamp() so it stays
+   * comfortable on phones through desktop.
+   */
   size?: number;
   /** Milliseconds between replays of the intro. Default 4800 (matches brand). */
   interval?: number;
@@ -27,10 +31,11 @@ type LoaderProps = {
 
 export function Loader({
   fullScreen = true,
-  size = 148,
+  size,
   interval = 4800,
   className,
 }: LoaderProps) {
+  const responsive = size === undefined;
   const stageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,11 +92,11 @@ export function Loader({
         .filter(Boolean)
         .join(' ')}
     >
-      <div className="sb-lockup flex items-center gap-[26px]">
+      <div className="sb-lockup flex items-center">
         <svg
           className="sb-mark block overflow-visible"
           viewBox="0 0 100 100"
-          style={{ width: size, height: size }}
+          style={responsive ? undefined : { width: size, height: size }}
           aria-hidden="true"
         >
           <path className="sb-arch" pathLength={100} d="M22 67 C22 33 78 33 78 67" />
@@ -102,7 +107,7 @@ export function Loader({
         </svg>
         <div
           className="sb-wm font-extrabold leading-none whitespace-nowrap"
-          style={{ fontSize: Math.round(size * 0.42) }}
+          style={responsive ? undefined : { fontSize: Math.round(size * 0.42) }}
         >
           <span className="sb-wm-s">School</span>
           <span className="sb-wm-b">Bridge</span>
