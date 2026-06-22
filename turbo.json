@@ -1,6 +1,27 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": [".env"],
+  "globalEnv": [
+    "PORT",
+    "NODE_ENV",
+    "DATABASE_URL",
+    "JWT_ACCESS_SECRET",
+    "JWT_REFRESH_SECRET",
+    "JWT_ACCESS_TTL",
+    "JWT_REFRESH_TTL",
+    "REDIS_URL",
+    "CLOUDINARY_URL",
+    "TERMII_API_KEY",
+    "TERMII_SENDER_ID",
+    "TERMII_BASE_URL",
+    "EXPO_ACCESS_TOKEN",
+    "PAYSTACK_SECRET_KEY",
+    "PAYSTACK_PUBLIC_KEY",
+    "PAYSTACK_WEBHOOK_SECRET",
+    "RESEND_API_KEY",
+    "RESEND_FROM_EMAIL",
+    "NOTIFICATIONS_ENABLED"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
