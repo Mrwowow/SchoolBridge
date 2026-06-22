@@ -5,8 +5,9 @@
   "description": "SchoolBridge NestJS API — digital parent-teacher communication backend",
   "license": "UNLICENSED",
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "nest start --watch",
-    "build": "nest build",
+    "build": "prisma generate && nest build",
     "start": "node dist/main",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "typecheck": "tsc --noEmit",
