@@ -65,6 +65,29 @@
 
 .sb-lockup {
   animation: sb-floaty 6s ease-in-out infinite;
+  /* Fluid gap: tighter on phones, roomy on desktop. */
+  gap: clamp(12px, 4vw, 26px);
+  /* Don't let the lockup exceed the viewport on small screens. */
+  max-width: 92vw;
+}
+
+/* Responsive default sizing (used when <Loader /> gets no explicit `size`).
+   Inline width/height/font-size from an explicit size override these. */
+.sb-mark {
+  width: clamp(84px, 26vw, 148px);
+  height: clamp(84px, 26vw, 148px);
+  flex: none;
+}
+.sb-wm {
+  font-size: clamp(28px, 9vw, 62px);
+}
+
+/* Stack the mark above the wordmark on very narrow screens. */
+@media (max-width: 380px) {
+  .sb-lockup {
+    flex-direction: column;
+    gap: clamp(10px, 3vw, 18px);
+  }
 }
 
 .sb-arch {
