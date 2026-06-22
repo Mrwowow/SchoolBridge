@@ -53,14 +53,15 @@ export class PushSender {
 
   private async sendChunk(chunk: ExpoMessage[], result: PushResult): Promise<void> {
     try {
-      const res = await fetch(this.endpoint, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(chunk),
-      });
+      const res: { ok: boolean; status: number; json(): Promise<unknown>; text(): Promise<string> } =
+        await fetch(this.endpoint, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(chunk),
+        });
 
       if (!res.ok) {
         this.logger.warn(`Expo push failed: ${res.status} ${await res.text()}`);

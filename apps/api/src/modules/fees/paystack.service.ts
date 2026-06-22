@@ -7,6 +7,18 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+/**
+ * Minimal shape of the global `fetch` response we rely on. Declared locally so
+ * the build does not depend on the ambient `Response` lib type, which resolves
+ * inconsistently across @types/node versions / hoisting (TS2339 on .json/.ok).
+ */
+interface FetchResponse {
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+  text(): Promise<string>;
+}
+
 interface InitResult {
   authorizationUrl: string;
   accessCode: string;
@@ -40,7 +52,7 @@ export class PaystackService {
     callbackUrl?: string;
     metadata?: Record<string, unknown>;
   }): Promise<InitResult> {
-    const res = await fetch(`${this.base}/transaction/initialize`, {
+    const res: FetchResponse = await fetch(`${this.base}/transaction/initialize`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.secret()}`,

@@ -25,7 +25,7 @@ export class SmsSender {
     }
 
     try {
-      const res = await fetch(this.endpoint, {
+      const res: { ok: boolean; status: number } = await fetch(this.endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
