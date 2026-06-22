@@ -9,6 +9,11 @@ overrides:
   '@expo/metro-runtime': '55.0.11'
   expo-linking: '~55.0.15'
   expo-constants: '~55.0.16'
+  # Collapse @types/node to a single v22 across the tree so the global
+  # fetch/Response types (from undici-types, only in >=20.12 / v22) resolve
+  # consistently. Older transitive copies (18.x/20.x) lack them and, when
+  # hoisted, break tsc on `res.json()` / `res.ok` in the API's fetch calls.
+  '@types/node': '^22.4.0'
 
 allowBuilds:
   '@nestjs/core': true

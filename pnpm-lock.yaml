@@ -8,6 +8,7 @@ overrides:
   '@expo/metro-runtime': 55.0.11
   expo-linking: ~55.0.15
   expo-constants: ~55.0.16
+  '@types/node': ^22.4.0
 
 importers:
 
@@ -4331,7 +4332,7 @@ packages:
     resolution: {integrity: sha512-uXbpfeQ7R6TZBqI3/TxCU4q4ttk3u0PJeC+E0zbfSoSjq6bJ7buBPxzQPL0ifrkY4DNu4JUdk0ImlBUYi840eQ==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
     peerDependencies:
-      '@types/node': '*'
+      '@types/node': ^22.4.0
       ts-node: '>=9.0.0'
     peerDependenciesMeta:
       '@types/node':
@@ -6334,7 +6335,7 @@ packages:
     peerDependencies:
       '@swc/core': '>=1.2.50'
       '@swc/wasm': '>=1.2.50'
-      '@types/node': '*'
+      '@types/node': ^22.4.0
       typescript: '>=2.7'
     peerDependenciesMeta:
       '@swc/core':
