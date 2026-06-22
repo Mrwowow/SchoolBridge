@@ -47,3 +47,128 @@
     background-image: linear-gradient(135deg, #2F6BFF 0%, #1341d6 100%);
   }
 }
+
+/* ──────────────────────────────────────────────────────────────────
+   SchoolBridge animated loader (see components/ui/Loader.tsx)
+   Dark brand background; the logo draws itself in on mount.
+   ────────────────────────────────────────────────────────────────── */
+.sb-stage {
+  background: radial-gradient(120% 120% at 50% 30%, #1b2440, #0c1224 75%);
+  /* element colours for the dark background */
+  --sb-arch: #fff;
+  --sb-foot: #fff;
+  --sb-key: #ffb488;
+  --sb-ring: #ffb488;
+  --sb-wm1: #fff;
+  --sb-wm2: #6e9bff;
+}
+
+.sb-lockup {
+  animation: sb-floaty 6s ease-in-out infinite;
+}
+
+.sb-arch {
+  fill: none;
+  stroke: var(--sb-arch);
+  stroke-width: 13;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+}
+.sb-foot {
+  fill: var(--sb-foot);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.sb-key {
+  fill: var(--sb-key);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.sb-ring {
+  fill: none;
+  stroke: var(--sb-ring);
+  stroke-width: 3;
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+}
+
+.sb-wm {
+  letter-spacing: -0.035em;
+}
+.sb-wm-s {
+  color: var(--sb-wm1);
+  font-weight: 600;
+}
+.sb-wm-b {
+  color: var(--sb-wm2);
+}
+
+/* run state — the intro timeline */
+.sb-stage.run .sb-footL {
+  animation: sb-pop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: 0.1s;
+}
+.sb-stage.run .sb-arch {
+  animation: sb-draw 0.9s cubic-bezier(0.65, 0, 0.35, 1) both;
+  animation-delay: 0.35s;
+}
+.sb-stage.run .sb-footR {
+  animation: sb-pop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: 1.02s;
+}
+.sb-stage.run .sb-key {
+  animation: sb-drop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation-delay: 1.18s;
+}
+.sb-stage.run .sb-ring {
+  animation: sb-ripple 0.7s ease-out both;
+  animation-delay: 1.34s;
+}
+.sb-stage.run .sb-wm {
+  animation: sb-wipe 0.8s cubic-bezier(0.5, 0, 0.15, 1) both;
+  animation-delay: 1.45s;
+}
+
+@keyframes sb-pop {
+  from { transform: scale(0); opacity: 0; }
+  60% { opacity: 1; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes sb-draw {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes sb-drop {
+  0% { transform: translateY(-32px) scale(0.2); opacity: 0; }
+  55% { opacity: 1; }
+  78% { transform: translateY(2px) scale(1.06); }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes sb-ripple {
+  0% { transform: scale(0.4); opacity: 0.55; }
+  100% { transform: scale(3); opacity: 0; }
+}
+@keyframes sb-wipe {
+  from { clip-path: inset(0 100% 0 0); transform: translateX(-10px); }
+  to { clip-path: inset(0 0 0 0); transform: translateX(0); }
+}
+@keyframes sb-floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* Respect reduced-motion: show the resting, fully visible logo. */
+@media (prefers-reduced-motion: reduce) {
+  .sb-lockup { animation: none; }
+  .sb-stage.run .sb-footL,
+  .sb-stage.run .sb-arch,
+  .sb-stage.run .sb-footR,
+  .sb-stage.run .sb-key,
+  .sb-stage.run .sb-ring,
+  .sb-stage.run .sb-wm {
+    animation: none;
+  }
+  .sb-arch { stroke-dashoffset: 0; }
+  .sb-ring { display: none; }
+}
