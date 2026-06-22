@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SchoolBridge — Animated Logo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<template id="__bundler_thumbnail" data-bg-color="#0c1224">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <path d="M460 520 C460 320 740 320 740 520" fill="none" stroke="#FFFFFF" stroke-width="58" stroke-linecap="round"/>
+    <circle cx="460" cy="520" r="40" fill="#FFFFFF"/>
+    <circle cx="740" cy="520" r="40" fill="#FFFFFF"/>
+    <circle cx="600" cy="360" r="31" fill="#FFB488"/>
+  </svg>
+</template>
+<style>
+  :root{
+    --blue:#2F6BFF; --blue-deep:#2356E6; --blue-lite:#4C84FF;
+    --ink:#18233B; --accent:#E0702B; --accent-lite:#FFB488;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{
+    font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    display:flex;align-items:center;justify-content:center;
+    background:#0c1224;overflow:hidden;
+  }
+
+  /* ── stage ── */
+  .stage{
+    position:relative;width:100vw;height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .5s ease;
+    --arch:var(--blue); --foot:var(--blue); --key:var(--accent); --ring:var(--accent);
+    --wm1:var(--ink); --wm2:var(--blue);
+  }
+  .stage.bg-light{background:radial-gradient(120% 120% at 50% 35%,#ffffff,#e9f0ff 70%,#dde7fb);}
+  .stage.bg-blue{
+    background:linear-gradient(158deg,var(--blue-lite),var(--blue) 58%,var(--blue-deep));
+    --arch:#fff; --foot:#fff; --key:var(--accent-lite); --ring:var(--accent-lite); --wm1:#fff; --wm2:#fff;
+  }
+  .stage.bg-dark{
+    background:radial-gradient(120% 120% at 50% 30%,#1b2440,#0c1224 75%);
+    --arch:#fff; --foot:#fff; --key:var(--accent-lite); --ring:var(--accent-lite); --wm1:#fff; --wm2:#6E9BFF;
+  }
+
+  .lockup{display:flex;align-items:center;gap:26px;animation:floaty 6s ease-in-out infinite;}
+  .mark{width:148px;height:148px;display:block;overflow:visible;}
+
+  /* svg elements */
+  .arch{
+    fill:none;stroke:var(--arch);stroke-width:13;stroke-linecap:round;
+    stroke-dasharray:100;
+  }
+  .foot{fill:var(--foot);transform-box:fill-box;transform-origin:center;}
+  .key{fill:var(--key);transform-box:fill-box;transform-origin:center;}
+  .ring{fill:none;stroke:var(--ring);stroke-width:3;transform-box:fill-box;transform-origin:center;opacity:0;}
+
+  /* wordmark */
+  .wm{font-weight:800;letter-spacing:-.035em;font-size:62px;line-height:1;white-space:nowrap;
+      clip-path:inset(0 0 0 0);}
+  .wm .s{color:var(--wm1);font-weight:600;}
+  .wm .b{color:var(--wm2);}
+
+  /* ── run state animations ── */
+  .stage.run .footL{animation:pop .42s cubic-bezier(.34,1.56,.64,1) both;animation-delay:.10s;}
+  .stage.run .arch {animation:draw .9s cubic-bezier(.65,0,.35,1) both;animation-delay:.35s;}
+  .stage.run .footR{animation:pop .42s cubic-bezier(.34,1.56,.64,1) both;animation-delay:1.02s;}
+  .stage.run .key  {animation:drop .6s cubic-bezier(.34,1.56,.64,1) both;animation-delay:1.18s;}
+  .stage.run .ring {animation:ripple .7s ease-out both;animation-delay:1.34s;}
+  .stage.run .wm   {animation:wipe .8s cubic-bezier(.5,0,.15,1) both;animation-delay:1.45s;}
+
+  @keyframes pop{ from{transform:scale(0);opacity:0} 60%{opacity:1} to{transform:scale(1);opacity:1} }
+  @keyframes draw{ from{stroke-dashoffset:100} to{stroke-dashoffset:0} }
+  @keyframes drop{
+    0%{transform:translateY(-32px) scale(.2);opacity:0}
+    55%{opacity:1}
+    78%{transform:translateY(2px) scale(1.06)}
+    100%{transform:translateY(0) scale(1);opacity:1}
+  }
+  @keyframes ripple{ 0%{transform:scale(.4);opacity:.55} 100%{transform:scale(3);opacity:0} }
+  @keyframes wipe{ from{clip-path:inset(0 100% 0 0);transform:translateX(-10px)} to{clip-path:inset(0 0 0 0);transform:translateX(0)} }
+  @keyframes floaty{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+
+  @media (prefers-reduced-motion: reduce){
+    .lockup{animation:none;}
+    .stage.run .footL,.stage.run .arch,.stage.run .footR,.stage.run .key,.stage.run .ring,.stage.run .wm{animation:none;}
+    .arch{stroke-dashoffset:0;} .ring{display:none;}
+  }
+
+  /* ── controls ── */
+  .controls{
+    position:fixed;bottom:26px;left:50%;transform:translateX(-50%);
+    display:flex;align-items:center;gap:10px;z-index:10;
+    padding:7px;border-radius:999px;
+    background:rgba(255,255,255,.1);backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.16);
+  }
+  .controls.dimk{background:rgba(24,35,59,.06);border-color:rgba(24,35,59,.1);}
+  .btn{
+    all:unset;cursor:pointer;font-weight:700;font-size:13px;
+    padding:9px 16px;border-radius:999px;color:#fff;display:flex;align-items:center;gap:7px;
+    transition:background .2s;
+  }
+  .btn:hover{background:rgba(255,255,255,.14);}
+  .controls.dimk .btn{color:var(--ink);}
+  .controls.dimk .btn:hover{background:rgba(24,35,59,.07);}
+  .seg{display:flex;gap:3px;padding:3px;border-radius:999px;background:rgba(255,255,255,.1);}
+  .controls.dimk .seg{background:rgba(24,35,59,.06);}
+  .seg button{
+    all:unset;cursor:pointer;width:26px;height:26px;border-radius:999px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .sw{width:16px;height:16px;border-radius:999px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);}
+  .seg button[aria-pressed="true"]{box-shadow:0 0 0 2px rgba(255,255,255,.9);}
+  .controls.dimk .seg button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--blue);}
+  .divider{width:1px;height:22px;background:rgba(255,255,255,.18);}
+  .controls.dimk .divider{background:rgba(24,35,59,.14);}
+</style>
+</head>
+<body>
+  <div class="stage bg-dark" id="stage">
+    <div class="lockup">
+      <svg class="mark" viewBox="0 0 100 100">
+        <path class="arch" pathLength="100" d="M22 67 C22 33 78 33 78 67" />
+        <circle class="foot footL" cx="22" cy="67" r="9" />
+        <circle class="foot footR" cx="78" cy="67" r="9" />
+        <circle class="ring" cx="50" cy="31" r="7" />
+        <circle class="key" cx="50" cy="31" r="7" />
+      </svg>
+      <div class="wm"><span class="s">School</span><span class="b">Bridge</span></div>
+    </div>
+  </div>
+
+  <div class="controls" id="controls">
+    <button class="btn" id="replay">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+      Replay
+    </button>
+    <div class="divider"></div>
+    <div class="seg" id="bgseg">
+      <button data-bg="light" aria-pressed="false" title="On white"><span class="sw" style="background:#fff"></span></button>
+      <button data-bg="blue" aria-pressed="false" title="On brand blue"><span class="sw" style="background:#2F6BFF"></span></button>
+      <button data-bg="dark" aria-pressed="true" title="On dark"><span class="sw" style="background:#16203a"></span></button>
+    </div>
+  </div>
+
+<script>
+  const stage = document.getElementById('stage');
+  const controls = document.getElementById('controls');
+  let timer;
+
+  function play(){
+    stage.classList.remove('run');
+    void stage.offsetWidth;          // force reflow to restart animations
+    stage.classList.add('run');
+  }
+  function loop(){
+    clearInterval(timer);
+    timer = setInterval(() => { if (!document.hidden) play(); }, 4800);
+  }
+
+  document.getElementById('replay').addEventListener('click', () => { play(); loop(); });
+
+  // Only run the intro while the tab is visible — a backgrounded tab pauses the
+  // animation timeline, so we keep the resting (fully visible) logo as the base.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { play(); loop(); } else { clearInterval(timer); }
+  });
+
+  document.getElementById('bgseg').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if(!b) return;
+    const bg = b.dataset.bg;
+    stage.classList.remove('bg-light','bg-blue','bg-dark');
+    stage.classList.add('bg-' + bg);
+    controls.classList.toggle('dimk', bg === 'light');
+    [...e.currentTarget.children].forEach(c => c.setAttribute('aria-pressed', c === b));
+  });
+
+  // kick off (only animate if visible; otherwise the static logo shows)
+  if (!document.hidden) { play(); loop(); }
+</script>
+</body>
+</html>

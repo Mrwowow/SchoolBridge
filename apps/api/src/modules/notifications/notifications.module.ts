@@ -3,9 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 
 import { NotificationsService, NOTIFICATION_QUEUE } from './notifications.service';
+import { NotificationsController } from './notifications.controller';
 import { NotificationsProcessor } from './notifications.processor';
+import { PushSender } from './dispatch/push.sender';
+import { SmsSender } from './dispatch/sms.sender';
 import { getQueueToken } from './queue.decorator';
 import { buildRedisConnection, notificationsEnabled } from './redis.util';
+import { RealtimeModule } from '../../realtime/realtime.module';
 
 /** No-op stand-in used when NOTIFICATIONS_ENABLED=false so the API runs without Redis. */
 const NOOP_QUEUE = {
@@ -24,6 +28,8 @@ const NOOP_QUEUE = {
  *   - NotificationsProcessor (Worker consumer, starts on module init)
  */
 @Module({
+  imports: [RealtimeModule],
+  controllers: [NotificationsController],
   providers: [
     {
       provide: getQueueToken(NOTIFICATION_QUEUE),
@@ -44,6 +50,8 @@ const NOOP_QUEUE = {
     },
     NotificationsService,
     NotificationsProcessor,
+    PushSender,
+    SmsSender,
   ],
   exports: [NotificationsService],
 })

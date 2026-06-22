@@ -47,6 +47,12 @@ enum AttendanceStatus {
   EXCUSED
 }
 
+enum BehaviourLevel {
+  NEEDS_WORK
+  GOOD
+  EXCELLENT
+}
+
 enum NotificationChannel {
   PUSH
   SMS
@@ -89,6 +95,11 @@ enum SubscriptionStatus {
   TRIALING
 }
 
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
 enum PaymentStatus {
   PENDING
   PAID
@@ -99,26 +110,29 @@ enum PaymentStatus {
 // ─── School (tenant root) ───────────────────────────────────────────────────
 
 model School {
-  id          String       @id @default(cuid())
-  name        String
-  slug        String       @unique
-  plan        SchoolPlan   @default(TRIAL)
-  status      SchoolStatus @default(ACTIVE)
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  plan      SchoolPlan   @default(TRIAL)
+  status    SchoolStatus @default(ACTIVE)
   /// Flexible settings bag: address, logo URL, timezone, etc.
-  settings    Json         @default("{}")
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  settings  Json         @default("{}")
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
-  memberships   Membership[]
-  academicYears AcademicYear[]
-  classRooms    ClassRoom[]
-  subjects      Subject[]
-  pupils        Pupil[]
-  messages      Message[]
-  notifications Notification[]
-  subscriptions Subscription[]
-  auditLogs     AuditLog[]
-  feeInvoices   FeeInvoice[]
+  memberships      Membership[]
+  academicYears    AcademicYear[]
+  classRooms       ClassRoom[]
+  subjects         Subject[]
+  pupils           Pupil[]
+  messages         Message[]
+  notifications    Notification[]
+  subscriptions    Subscription[]
+  auditLogs        AuditLog[]
+  feeInvoices      FeeInvoice[]
+  daySubjectNotes  DaySubjectNote[]
+  behaviourRatings BehaviourRating[]
+  pupilBadges      PupilBadge[]
 
   @@index([status])
   @@map("schools")
@@ -127,17 +141,17 @@ model School {
 // ─── User ───────────────────────────────────────────────────────────────────
 
 model User {
-  id           String    @id @default(cuid())
-  fullName     String
-  phone        String    @unique
-  email        String?   @unique
-  passwordHash String
-  locale       String    @default("en")
+  id              String    @id @default(cuid())
+  fullName        String
+  phone           String    @unique
+  email           String?   @unique
+  passwordHash    String
+  locale          String    @default("en")
   /// Null until phone is verified via OTP
   phoneVerifiedAt DateTime?
-  deletedAt    DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   memberships      Membership[]
   otpCodes         OtpCode[]
@@ -147,6 +161,7 @@ model User {
   notifications    Notification[]
   auditLogs        AuditLog[]
   refreshTokens    RefreshToken[]
+  deviceTokens     DeviceToken[]
 
   @@index([phone])
   @@index([email])
@@ -154,14 +169,30 @@ model User {
   @@map("users")
 }
 
+// ─── DeviceToken (Expo push tokens per user device) ─────────────────────────
+
+model DeviceToken {
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique
+  platform   String? // ios | android | web
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
 // ─── Membership (User ↔ School ↔ Role) ─────────────────────────────────────
 
 model Membership {
-  id        String   @id @default(cuid())
-  userId    String
-  schoolId  String
-  role      Role
-  joinedAt  DateTime @default(now())
+  id       String   @id @default(cuid())
+  userId   String
+  schoolId String
+  role     Role
+  joinedAt DateTime @default(now())
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -175,12 +206,12 @@ model Membership {
 // ─── Auth: OTP + Refresh Tokens ─────────────────────────────────────────────
 
 model OtpCode {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   code      String
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -209,7 +240,7 @@ model RefreshToken {
 model AcademicYear {
   id        String   @id @default(cuid())
   schoolId  String
-  label     String   // e.g. "2024/2025"
+  label     String // e.g. "2024/2025"
   startDate DateTime
   endDate   DateTime
   isCurrent Boolean  @default(false)
@@ -228,7 +259,7 @@ model Term {
   id             String   @id @default(cuid())
   academicYearId String
   schoolId       String
-  label          String   // e.g. "First Term"
+  label          String // e.g. "First Term"
   startDate      DateTime
   endDate        DateTime
   isCurrent      Boolean  @default(false)
@@ -249,15 +280,15 @@ model Term {
 model ClassRoom {
   id             String   @id @default(cuid())
   schoolId       String
-  name           String   // e.g. "JSS 1A"
+  name           String // e.g. "JSS 1A"
   classTeacherId String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  enrollments  Enrollment[]
-  messages     Message[]
-  attendances  Attendance[]
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  enrollments Enrollment[]
+  messages    Message[]
+  attendances Attendance[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -274,6 +305,7 @@ model Subject {
 
   school            School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   assessmentResults AssessmentResult[]
+  daySubjectNotes   DaySubjectNote[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -283,24 +315,28 @@ model Subject {
 // ─── Pupil ───────────────────────────────────────────────────────────────────
 
 model Pupil {
-  id            String    @id @default(cuid())
-  schoolId      String
-  fullName      String
-  dateOfBirth   DateTime?
-  gender        String?
-  admissionNo   String?
-  deletedAt     DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  schoolId    String
+  fullName    String
+  dateOfBirth DateTime?
+  gender      String?
+  admissionNo String?
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  school            School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  guardianLinks     GuardianLink[]
-  enrollments       Enrollment[]
-  messages          Message[]
-  messageReceipts   MessageReceipt[]
-  attendances       Attendance[]
-  assessmentResults AssessmentResult[]
-  feeInvoices       FeeInvoice[]
+  school              School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  guardianLinks       GuardianLink[]
+  enrollments         Enrollment[]
+  messages            Message[]
+  messageReceipts     MessageReceipt[]
+  attendances         Attendance[]
+  assessmentResults   AssessmentResult[]
+  feeInvoices         FeeInvoice[]
+  daySubjectNotes     DaySubjectNote[]
+  behaviourRatings    BehaviourRating[]
+  homeworkSubmissions HomeworkSubmission[]
+  badges              PupilBadge[]
 
   @@unique([schoolId, admissionNo])
   @@index([schoolId])
@@ -330,10 +366,10 @@ model GuardianLink {
 // ─── Enrollment (Pupil ↔ ClassRoom per term) ────────────────────────────────
 
 model Enrollment {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   pupilId     String
   classRoomId String
-  enrolledAt  DateTime @default(now())
+  enrolledAt  DateTime  @default(now())
   leftAt      DateTime?
 
   pupil     Pupil     @relation(fields: [pupilId], references: [id], onDelete: Cascade)
@@ -360,17 +396,20 @@ model Message {
   body        String?
   /// Object-store keys for uploaded attachments
   attachments String[]      @default([])
+  /// Object-store key / URL for a voice note, when this entry is audio.
+  audioUrl    String?
   dueAt       DateTime?
   deletedAt   DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  school    School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  author    User             @relation("MessageAuthor", fields: [authorId], references: [id])
-  pupil     Pupil?           @relation(fields: [pupilId], references: [id])
-  classRoom ClassRoom?       @relation(fields: [classRoomId], references: [id])
-  receipts  MessageReceipt[]
-  replies   Reply[]
+  school      School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  author      User                 @relation("MessageAuthor", fields: [authorId], references: [id])
+  pupil       Pupil?               @relation(fields: [pupilId], references: [id])
+  classRoom   ClassRoom?           @relation(fields: [classRoomId], references: [id])
+  receipts    MessageReceipt[]
+  replies     Reply[]
+  submissions HomeworkSubmission[]
 
   @@index([schoolId, createdAt(sort: Desc)])
   @@index([schoolId, pupilId])
@@ -406,6 +445,8 @@ model Reply {
   messageId String
   authorId  String
   body      String
+  /// Object-store key / URL for a voice-note reply, when audio.
+  audioUrl  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -428,6 +469,10 @@ model Attendance {
   date        DateTime         @db.Date
   status      AttendanceStatus
   note        String?
+  /// Free-text mood captured at register time (e.g. "Cheerful"). Optional.
+  mood        String?
+  /// When the pupil arrived (for "arrived 7:42 AM" on the parent home).
+  arrivedAt   DateTime?
   recordedBy  String
   createdAt   DateTime         @default(now())
 
@@ -464,6 +509,95 @@ model AssessmentResult {
   @@index([pupilId])
   @@index([termId])
   @@map("assessment_results")
+}
+
+// ─── DaySubjectNote (per-subject classwork entry for a pupil's day) ──────────
+// Powers the parent "Today" report: one row per subject taught that day.
+
+model DaySubjectNote {
+  id        String   @id @default(cuid())
+  schoolId  String
+  pupilId   String
+  subjectId String
+  date      DateTime @db.Date
+  /// What was covered, e.g. "Long division (3-digit numbers)".
+  topic     String
+  /// Teacher's short note, e.g. "Led her group".
+  note      String?
+  /// Optional classwork score shown as "8/10".
+  score     Int?
+  maxScore  Int?
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  pupil   Pupil   @relation(fields: [pupilId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id])
+
+  @@unique([pupilId, subjectId, date])
+  @@index([schoolId, pupilId, date])
+  @@map("day_subject_notes")
+}
+
+// ─── BehaviourRating (per-pupil daily behaviour scorecard) ──────────────────
+// Powers the report's "Participation & behaviour" rating rows.
+
+model BehaviourRating {
+  id        String         @id @default(cuid())
+  schoolId  String
+  pupilId   String
+  date      DateTime       @db.Date
+  /// Rating dimension, e.g. "Class participation", "Focus & attention".
+  label     String
+  value     BehaviourLevel
+  createdBy String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  pupil  Pupil  @relation(fields: [pupilId], references: [id], onDelete: Cascade)
+
+  @@unique([pupilId, date, label])
+  @@index([schoolId, pupilId, date])
+  @@map("behaviour_ratings")
+}
+
+// ─── HomeworkSubmission (pupil submitted a HOMEWORK message) ─────────────────
+// Powers teacher "submitted / total" counts and the parent "done" checkbox.
+
+model HomeworkSubmission {
+  id          String   @id @default(cuid())
+  messageId   String
+  pupilId     String
+  submittedAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pupil   Pupil   @relation(fields: [pupilId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, pupilId])
+  @@index([pupilId])
+  @@map("homework_submissions")
+}
+
+// ─── PupilBadge (milestones shown on the pupil profile) ─────────────────────
+
+model PupilBadge {
+  id        String   @id @default(cuid())
+  schoolId  String
+  pupilId   String
+  /// Icon key understood by the mobile design system, e.g. "book", "star".
+  icon      String
+  label     String
+  /// Sub-text, e.g. "12 days", "Mathematics".
+  sub       String?
+  createdAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  pupil  Pupil  @relation(fields: [pupilId], references: [id], onDelete: Cascade)
+
+  @@index([pupilId])
+  @@map("pupil_badges")
 }
 
 // ─── FeeInvoice & Payment ────────────────────────────────────────────────────
@@ -508,16 +642,41 @@ model Payment {
 
 // ─── Subscription (school billing) ──────────────────────────────────────────
 
+// ─── Plan catalog ────────────────────────────────────────────────────────────
+// One row per SchoolPlan tier. Defines what each tier costs and offers; the
+// Super Admin edits these. School.plan / Subscription.plan reference the tier
+// key, this model gives that key its price, limits and description.
+
+model Plan {
+  tier            SchoolPlan      @id
+  name            String
+  description     String          @default("")
+  /// Price in whole Naira (NGN) for one billing interval. 0 = free (e.g. TRIAL).
+  priceNaira      Int             @default(0)
+  billingInterval BillingInterval @default(MONTHLY)
+  /// Feature limits. null = unlimited.
+  maxPupils       Int?
+  maxStaff        Int?
+  /// Bundled SMS messages per interval. null = unlimited.
+  smsQuota        Int?
+  /// When false, the tier is hidden from new sign-ups but existing schools keep it.
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@map("plans")
+}
+
 model Subscription {
-  id               String             @id @default(cuid())
-  schoolId         String
-  plan             SchoolPlan
-  status           SubscriptionStatus @default(TRIALING)
+  id                 String             @id @default(cuid())
+  schoolId           String
+  plan               SchoolPlan
+  status             SubscriptionStatus @default(TRIALING)
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime
-  paystackSubCode  String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  paystackSubCode    String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
@@ -537,6 +696,7 @@ model Notification {
   body      String
   data      Json                @default("{}")
   sentAt    DateTime?
+  readAt    DateTime?
   createdAt DateTime            @default(now())
 
   school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -551,15 +711,15 @@ model Notification {
 // ─── AuditLog ────────────────────────────────────────────────────────────────
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  schoolId  String?
-  userId    String?
-  action    String
-  resource  String
+  id         String   @id @default(cuid())
+  schoolId   String?
+  userId     String?
+  action     String
+  resource   String
   resourceId String?
-  meta      Json     @default("{}")
-  ip        String?
-  createdAt DateTime @default(now())
+  meta       Json     @default("{}")
+  ip         String?
+  createdAt  DateTime @default(now())
 
   school School? @relation(fields: [schoolId], references: [id])
   user   User?   @relation(fields: [userId], references: [id])

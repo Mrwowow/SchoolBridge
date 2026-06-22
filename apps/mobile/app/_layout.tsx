@@ -1,43 +1,32 @@
 /**
  * app/_layout.tsx
- * Root layout — bootstraps:
- *  - React Query (QueryClientProvider)
- *  - Safe area
- *  - Auth hydration + redirect gate
- *  - Notification listeners
+ * Root layout: auth hydration + redirect gate, safe-area, status bar.
+ * (Notifications setup is intentionally deferred to keep the root module load
+ * side-effect-free; it can be re-introduced lazily once running on a dev build.)
  */
-import React, { useEffect, useRef } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import {
-  QueryClient,
-  QueryClientProvider,
-} from '@tanstack/react-query';
-import * as Notifications from 'expo-notifications';
-import type { Subscription } from 'expo-notifications';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '../src/store/authStore';
-import { registerPushToken } from '../src/notifications/registerPushToken';
-import { Colors } from '../src/theme';
+import { SplashScreen } from '../src/screens/SplashScreen';
 
+// One QueryClient for the app's lifetime. Created at module scope so it is not
+// recreated on re-render (which would drop the cache).
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: {
-      retry: 2,
-      // Keep data fresh for 2 min — conservative for low-bandwidth
-      staleTime: 1000 * 60 * 2,
-    },
+    queries: { retry: 1, staleTime: 30_000 },
   },
 });
 
-/** Handles auth-based routing: unauthenticated → /login */
-function AuthGate() {
+function RootNavigator() {
   const router = useRouter();
   const segments = useSegments();
-  const { isAuthenticated, isLoading, hydrate } = useAuthStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isLoading = useAuthStore((s) => s.isLoading);
+  const hydrate = useAuthStore((s) => s.hydrate);
 
-  // Hydrate tokens from SecureStore on first mount
   useEffect(() => {
     void hydrate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -45,9 +34,7 @@ function AuthGate() {
 
   useEffect(() => {
     if (isLoading) return;
-
     const inAuthGroup = segments[0] === '(auth)';
-
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
     } else if (isAuthenticated && inAuthGroup) {
@@ -55,56 +42,21 @@ function AuthGate() {
     }
   }, [isAuthenticated, isLoading, segments, router]);
 
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surface }}>
-        <ActivityIndicator color={Colors.brand} size="large" />
-      </View>
-    );
-  }
-
   return <Slot />;
 }
 
-/** Sets up Expo Notifications listeners at the root level */
-function NotificationSetup({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
-  const responseListenerRef = useRef<Subscription | null>(null);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    // Register push token after login
-    void registerPushToken();
-
-    // Navigate to the relevant screen when a user taps a notification
-    responseListenerRef.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        const deepLink = response.notification.request.content.data?.[
-          'deepLink'
-        ] as string | undefined;
-        if (deepLink) {
-          router.push(deepLink as Parameters<typeof router.push>[0]);
-        }
-      });
-
-    return () => {
-      responseListenerRef.current?.remove();
-    };
-  }, [isAuthenticated, router]);
-
-  return <>{children}</>;
-}
-
 export default function RootLayout() {
+  // The animated splash overlays the app on launch; it dismisses itself once the
+  // logo intro finishes (or after a safety timeout). Routes mount underneath so
+  // the first screen is ready the moment the splash fades.
+  const [splashDone, setSplashDone] = useState(false);
+
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
         <StatusBar style="dark" />
-        <NotificationSetup>
-          <AuthGate />
-        </NotificationSetup>
+        <RootNavigator />
+        {!splashDone && <SplashScreen onFinish={() => setSplashDone(true)} />}
       </SafeAreaProvider>
     </QueryClientProvider>
   );

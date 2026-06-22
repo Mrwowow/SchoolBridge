@@ -11,11 +11,10 @@ export function useCreateMessage() {
 
   return useMutation({
     mutationFn: (dto: CreateMessageDto) => messagesApi.createMessage(dto),
-    onSuccess: (newMsg) => {
-      // Invalidate feed for the targeted pupil if target = PUPIL
-      if (newMsg.type && newMsg.sender) {
-        void qc.invalidateQueries({ queryKey: ['pupilFeed'] });
-      }
+    onSuccess: () => {
+      // Refresh any open pupil feeds and the teacher's homework status.
+      void qc.invalidateQueries({ queryKey: ['pupilFeed'] });
+      void qc.invalidateQueries({ queryKey: ['homeworkStatus'] });
     },
   });
 }

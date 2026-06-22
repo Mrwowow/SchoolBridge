@@ -1,38 +1,35 @@
 /**
  * src/api/notifications.ts
- * Push token registration and in-app notification listing.
+ * Push-token registration and in-app notifications. These routes are NOT
+ * school-scoped (notifications are per-user), so they use plain paths.
  */
+import type { Paginated } from '@schoolbridge/types';
 import { api } from './client';
 
 export interface AppNotification {
   id: string;
   title: string;
   body: string;
-  read: boolean;
+  readAt: string | null;
   createdAt: string;
-  /** Deep link target within the app */
-  deepLink: string | null;
 }
 
 export const notificationsApi = {
-  /**
-   * Register an Expo push token with the backend.
-   * TODO: confirm endpoint — assumed /notifications/push-token
-   */
-  registerPushToken: (token: string): Promise<void> =>
-    api.post('/notifications/push-token', { token, platform: 'expo' }),
+  /** Register an Expo push token with the backend. */
+  registerPushToken: (token: string, platform?: string): Promise<{ id: string }> =>
+    api.post('/notifications/push-token', { token, platform }),
 
-  /**
-   * List in-app notifications for the authenticated user.
-   * TODO: confirm endpoint — assumed /notifications
-   */
-  listNotifications: (): Promise<AppNotification[]> =>
-    api.get<AppNotification[]>('/notifications'),
+  /** List in-app notifications (most recent first, cursor-paginated). */
+  list: (cursor?: string): Promise<Paginated<AppNotification>> =>
+    api.get(`/notifications${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`),
 
-  /** Mark a notification as read */
-  markRead: (id: string): Promise<void> =>
-    api.patch(`/notifications/${id}/read`),
+  /** Unread count for the badge. */
+  unreadCount: (): Promise<{ count: number }> => api.get('/notifications/unread-count'),
 
-  /** Mark all notifications as read */
-  markAllRead: (): Promise<void> => api.post('/notifications/mark-all-read'),
+  /** Mark one notification read. */
+  markRead: (id: string): Promise<void> => api.patch(`/notifications/${id}/read`),
+
+  /** Mark all read. */
+  markAllRead: (): Promise<{ updated: number }> =>
+    api.post('/notifications/mark-all-read'),
 };

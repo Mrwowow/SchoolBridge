@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 472 116" width="472" height="116" role="img" aria-label="SchoolBridge">
+  <title>SchoolBridge logo (reversed)</title><desc>SchoolBridge brand mark — a single arch span joining two abutments with the child as keystone.</desc>
+  
+  <g transform="translate(8,9) scale(0.97)">
+    <path d="M22 67 C22 33 78 33 78 67" fill="none" stroke="#FFFFFF" stroke-width="13" stroke-linecap="round"></path>
+    <circle cx="22" cy="67" r="9" fill="#FFFFFF"></circle>
+    <circle cx="78" cy="67" r="9" fill="#FFFFFF"></circle>
+    <circle cx="50" cy="31" r="7" fill="#FFB488"></circle>
+  </g>
+  <text class="wm" x="116" y="79" font-size="60">
+    <tspan font-weight="600" fill="#FFFFFF">School</tspan><tspan font-weight="800" fill="#FFFFFF">Bridge</tspan>
+  </text>
+</svg>

@@ -1,57 +1,12 @@
 'use client';
 
-// TODO: wire to POST /messages and GET /messages via react-query
-
 import { useState } from 'react';
-import { Send, Plus, X, ChevronDown } from 'lucide-react';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-  Input,
-} from '@/components/ui';
-import type { BadgeVariant } from '@/components/ui';
+import { Send, Plus, X, ChevronDown, Paperclip } from 'lucide-react';
+import { Card, CardHeader, CardTitle, Button, Input } from '@/components/ui';
 import { CreateMessageDto } from '@schoolbridge/types';
 import type { MessageType, MessageTarget } from '@schoolbridge/types';
-import { clsx } from 'clsx';
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-interface MessageListItem {
-  id: string;
-  type: MessageType;
-  title: string;
-  body?: string;
-  target: MessageTarget;
-  targetName: string;
-  sentAt: string;
-  ackRate: string;
-}
-
-// ── Mock data ──────────────────────────────────────────────────────────────
-
-const MOCK_MESSAGES: MessageListItem[] = [
-  { id: 'm1', type: 'HOMEWORK',     title: 'Maths Homework — Fractions',       body: 'Complete exercises 4.1–4.5 in the textbook.', target: 'CLASS',  targetName: 'Class 4A',       sentAt: '2025-06-20T08:30:00Z', ackRate: '92%' },
-  { id: 'm2', type: 'NOTE',         title: 'Great Science session today!',      body: 'Temi showed excellent curiosity during lab.',  target: 'PUPIL',  targetName: 'Temi Adeyemi',   sentAt: '2025-06-20T09:15:00Z', ackRate: '100%' },
-  { id: 'm3', type: 'FEE_REMINDER', title: 'Term 2 Fees Outstanding',           body: 'Please clear outstanding fees before Friday.', target: 'SCHOOL', targetName: 'All parents',    sentAt: '2025-06-19T14:00:00Z', ackRate: '74%' },
-  { id: 'm4', type: 'ATTENDANCE',   title: 'Absence alert — Chukwu Obi',       body: 'Chukwu was absent today (20 June).',          target: 'PUPIL',  targetName: 'Chukwu Obi',     sentAt: '2025-06-20T07:45:00Z', ackRate: '100%' },
-  { id: 'm5', type: 'ANNOUNCEMENT', title: 'PTA Meeting — Saturday 12 July',   body: 'All parents are invited to the PTA meeting.', target: 'SCHOOL', targetName: 'All parents',    sentAt: '2025-06-18T10:00:00Z', ackRate: '61%' },
-];
-
-const TYPE_BADGE: Record<MessageType, { label: string; variant: BadgeVariant }> = {
-  NOTE:         { label: 'Note',         variant: 'green' },
-  HOMEWORK:     { label: 'Homework',     variant: 'blue' },
-  BEHAVIOUR:    { label: 'Behaviour',    variant: 'yellow' },
-  ATTENDANCE:   { label: 'Attendance',   variant: 'purple' },
-  RESULT:       { label: 'Result',       variant: 'gray' },
-  ANNOUNCEMENT: { label: 'Broadcast',    variant: 'gray' },
-  FEE_REMINDER: { label: 'Fee Reminder', variant: 'yellow' },
-  EVENT:        { label: 'Event',        variant: 'blue' },
-};
-
-// ── Compose Form ───────────────────────────────────────────────────────────
+import { useClasses, usePupils, useCreateMessage, useUploadAttachment } from '@/lib/queries';
+import { ApiError } from '@/lib/api';
 
 const MESSAGE_TYPES: MessageType[] = [
   'NOTE', 'HOMEWORK', 'BEHAVIOUR', 'ATTENDANCE',
@@ -71,6 +26,11 @@ interface FormState {
 }
 
 function ComposeForm({ onClose }: { onClose: () => void }) {
+  const classes = useClasses();
+  const createMessage = useCreateMessage();
+  const uploadAttachment = useUploadAttachment();
+  const [attachments, setAttachments] = useState<{ key: string; name: string }[]>([]);
+
   const [form, setForm] = useState<FormState>({
     type: 'NOTE',
     target: 'CLASS',
@@ -81,16 +41,33 @@ function ComposeForm({ onClose }: { onClose: () => void }) {
     dueAt: '',
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
-  const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Pupils for the picker — scoped to the chosen class when one is selected.
+  const pupils = usePupils(form.target === 'PUPIL' && form.classId ? form.classId : undefined);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: undefined }));
   }
 
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    setFormError(null);
+    try {
+      const { key } = await uploadAttachment.mutateAsync(file);
+      setAttachments((prev) => [...prev, { key, name: file.name }]);
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : 'Attachment upload failed.');
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setFormError(null);
 
     const payload = {
       type: form.type,
@@ -114,14 +91,20 @@ function ComposeForm({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    setLoading(true);
     try {
-      // TODO: apiFetch<Message>('/messages', { method: 'POST', body: parsed.data })
-      await new Promise((r) => setTimeout(r, 800)); // simulated latency
+      await createMessage.mutateAsync({
+        type: form.type,
+        target: form.target,
+        pupilId: form.target === 'PUPIL' ? form.pupilId : undefined,
+        classId: form.target === 'CLASS' ? form.classId : undefined,
+        title: form.title,
+        body: form.body || undefined,
+        attachments: attachments.map((a) => a.key),
+      });
       setSuccess(true);
       setTimeout(onClose, 1000);
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : 'Could not send the message.');
     }
   }
 
@@ -141,13 +124,16 @@ function ComposeForm({ onClose }: { onClose: () => void }) {
 
       {success ? (
         <div className="py-8 text-center">
-          <p className="text-sm font-medium text-emerald-600">
-            Message sent successfully!
-          </p>
+          <p className="text-sm font-medium text-emerald-600">Message sent — parents are notified.</p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
-          {/* Type + Target row */}
+          {formError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
+              {formError}
+            </div>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-gray-700" htmlFor="msg-type">
@@ -180,7 +166,9 @@ function ComposeForm({ onClose }: { onClose: () => void }) {
                   className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 pr-9 text-sm text-gray-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
                 >
                   {MESSAGE_TARGETS.map((t) => (
-                    <option key={t} value={t}>{t === 'PUPIL' ? 'Specific Pupil' : t === 'CLASS' ? 'Entire Class' : 'Whole School'}</option>
+                    <option key={t} value={t}>
+                      {t === 'PUPIL' ? 'Specific Pupil' : t === 'CLASS' ? 'Entire Class' : 'Whole School'}
+                    </option>
                   ))}
                 </select>
                 <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden />
@@ -188,28 +176,49 @@ function ComposeForm({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {/* Conditional target fields */}
-          {form.target === 'PUPIL' && (
-            <Input
-              label="Pupil ID"
-              id="pupil-id"
-              placeholder="UUID of the pupil"
-              value={form.pupilId}
-              onChange={(e) => set('pupilId', e.target.value)}
-              error={errors.pupilId}
-              hint="TODO: Replace with pupil search autocomplete"
-            />
+          {/* Class picker — shown for CLASS target, and to scope the pupil list for PUPIL target */}
+          {(form.target === 'CLASS' || form.target === 'PUPIL') && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700" htmlFor="class-sel">
+                {form.target === 'CLASS' ? 'Class' : 'Class (to find the pupil)'}
+              </label>
+              <select
+                id="class-sel"
+                value={form.classId}
+                onChange={(e) => {
+                  set('classId', e.target.value);
+                  set('pupilId', '');
+                }}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              >
+                <option value="">Select a class…</option>
+                {(classes.data ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              {errors.classId && <p className="text-xs text-red-500">{errors.classId}</p>}
+            </div>
           )}
-          {form.target === 'CLASS' && (
-            <Input
-              label="Class ID"
-              id="class-id"
-              placeholder="UUID of the class"
-              value={form.classId}
-              onChange={(e) => set('classId', e.target.value)}
-              error={errors.classId}
-              hint="TODO: Replace with class selector dropdown"
-            />
+
+          {form.target === 'PUPIL' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700" htmlFor="pupil-sel">Pupil</label>
+              <select
+                id="pupil-sel"
+                value={form.pupilId}
+                onChange={(e) => set('pupilId', e.target.value)}
+                disabled={!form.classId}
+                className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 disabled:bg-gray-50 disabled:text-gray-400"
+              >
+                <option value="">
+                  {form.classId ? 'Select a pupil…' : 'Choose a class first'}
+                </option>
+                {(pupils.data?.items ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>{p.fullName}</option>
+                ))}
+              </select>
+              {errors.pupilId && <p className="text-xs text-red-500">{errors.pupilId}</p>}
+            </div>
           )}
 
           <Input
@@ -247,11 +256,49 @@ function ComposeForm({ onClose }: { onClose: () => void }) {
             />
           )}
 
+          {/* Attachments */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">
+              Attachments <span className="text-gray-400">(images or PDF)</span>
+            </label>
+            <label className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">
+              <Paperclip size={15} aria-hidden />
+              {uploadAttachment.isPending ? 'Uploading…' : 'Add file'}
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={handleFileSelect}
+                disabled={uploadAttachment.isPending}
+              />
+            </label>
+            {attachments.length > 0 && (
+              <ul className="flex flex-col gap-1 pt-1">
+                {attachments.map((a) => (
+                  <li
+                    key={a.key}
+                    className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-1.5 text-xs text-gray-600"
+                  >
+                    <span className="truncate">{a.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setAttachments((prev) => prev.filter((x) => x.key !== a.key))}
+                      className="text-gray-400 hover:text-red-500"
+                      aria-label={`Remove ${a.name}`}
+                    >
+                      <X size={13} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" loading={loading}>
+            <Button type="submit" size="sm" loading={createMessage.isPending}>
               <Send size={15} aria-hidden />
               Send message
             </Button>
@@ -262,19 +309,16 @@ function ComposeForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ── Page ───────────────────────────────────────────────────────────────────
-
 export default function MessagesPage() {
   const [composing, setComposing] = useState(false);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
           <p className="mt-1 text-sm text-gray-500">
-            {MOCK_MESSAGES.length} messages sent this term
+            Post notes, homework, results and broadcasts to parents
           </p>
         </div>
         {!composing && (
@@ -285,47 +329,16 @@ export default function MessagesPage() {
         )}
       </div>
 
-      {/* Compose form */}
       {composing && <ComposeForm onClose={() => setComposing(false)} />}
 
-      {/* Message list */}
-      <Card noPadding>
-        <CardHeader className="px-6 pt-6">
-          <CardTitle>Sent Messages</CardTitle>
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent activity</CardTitle>
         </CardHeader>
-        <div className="divide-y divide-gray-50">
-          {MOCK_MESSAGES.map((msg) => {
-            const badge = TYPE_BADGE[msg.type];
-            const sentDate = new Date(msg.sentAt).toLocaleDateString('en-NG', {
-              day: 'numeric',
-              month: 'short',
-              hour: '2-digit',
-              minute: '2-digit',
-            });
-            return (
-              <div key={msg.id} className="flex flex-col gap-2 px-6 py-4 sm:flex-row sm:items-start sm:gap-4">
-                <div className="w-32 shrink-0 pt-0.5">
-                  <Badge variant={badge.variant}>{badge.label}</Badge>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900">{msg.title}</p>
-                  {msg.body && (
-                    <p className="mt-0.5 text-sm text-gray-400 line-clamp-1">{msg.body}</p>
-                  )}
-                  <p className="mt-1 text-xs text-gray-400">
-                    To: <span className="font-medium text-gray-600">{msg.targetName}</span>
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-xs text-gray-400 whitespace-nowrap">{sentDate}</p>
-                  <p className={clsx('mt-1 text-xs font-medium', parseInt(msg.ackRate) >= 80 ? 'text-emerald-600' : 'text-amber-500')}>
-                    {msg.ackRate} ack
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <p className="px-1 py-6 text-center text-sm text-gray-400">
+          Sent messages appear in each pupil&apos;s feed. Use the parent app or a pupil&apos;s profile
+          to review delivery and acknowledgements.
+        </p>
       </Card>
     </div>
   );

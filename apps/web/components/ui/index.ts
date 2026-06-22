@@ -7,3 +7,4 @@ export type { BadgeVariant } from './Badge';
 export { Table, TableHead, TableBody, TableRow, Th, Td } from './Table';
 export { Sidebar } from './Sidebar';
 export { Topbar } from './Topbar';
+export { Logo } from './Logo';

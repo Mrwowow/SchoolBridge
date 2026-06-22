@@ -1,40 +1,33 @@
 /**
  * src/hooks/useAcknowledge.ts
- * Mutation to acknowledge a message; optimistically updates the cache.
+ * Mutation to acknowledge a message for a pupil; optimistically flips the
+ * pupil's receipt to acknowledged.
  */
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { messagesApi, type MessageItem } from '../api';
+import { messagesApi, type MessageDetail } from '../api';
 import { messageKey } from './useMessage';
 
-export function useAcknowledge(messageId: string) {
+export function useAcknowledge(messageId: string, pupilId: string) {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: () => messagesApi.acknowledge(messageId),
+    mutationFn: () => messagesApi.acknowledge(messageId, pupilId),
 
-    // Optimistic update — flip acknowledged flag immediately
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: messageKey(messageId) });
-      const previous = qc.getQueryData<MessageItem>(messageKey(messageId));
+      const previous = qc.getQueryData<MessageDetail>(messageKey(messageId));
+      const nowIso = new Date().toISOString();
 
-      qc.setQueryData<MessageItem>(messageKey(messageId), (old) => {
+      qc.setQueryData<MessageDetail>(messageKey(messageId), (old) => {
         if (!old) return old;
-        return {
-          ...old,
-          receipt: old.receipt
-            ? {
-                ...old.receipt,
-                acknowledged: true,
-                acknowledgedAt: new Date().toISOString(),
-              }
-            : {
-                delivered: true,
-                read: true,
-                acknowledged: true,
-                readAt: new Date().toISOString(),
-                acknowledgedAt: new Date().toISOString(),
-              },
-        };
+        const receipts = (old.receipts ?? []).map((r) => ({
+          ...r,
+          read: true,
+          acknowledged: true,
+          readAt: r.readAt ?? nowIso,
+          acknowledgedAt: nowIso,
+        }));
+        return { ...old, receipts };
       });
 
       return { previous };

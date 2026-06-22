@@ -9,12 +9,8 @@ import { apiFetch, ApiError } from '@/lib/api';
 import { setToken, setRefreshToken, setSchoolId } from '@/lib/auth';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Logo } from '@/components/ui/Logo';
 import type { AuthTokens, SessionUser } from '@schoolbridge/types';
-
-interface LoginResponse {
-  tokens: AuthTokens;
-  user: SessionUser;
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -45,18 +41,19 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // TODO: wire to real API — POST /auth/login
-      const res = await apiFetch<LoginResponse>('/auth/login', {
+      // POST /auth/login returns AuthTokens; the user profile is fetched separately.
+      const tokens = await apiFetch<AuthTokens>('/auth/login', {
         method: 'POST',
         body: parsed.data,
         unauthenticated: true,
       });
 
-      setToken(res.tokens.accessToken);
-      setRefreshToken(res.tokens.refreshToken);
+      setToken(tokens.accessToken);
+      setRefreshToken(tokens.refreshToken);
 
-      // Default to the first membership school
-      const firstMembership = res.user.memberships[0];
+      // Resolve the active school from the user's memberships.
+      const me = await apiFetch<SessionUser>('/auth/me');
+      const firstMembership = me.memberships[0];
       if (firstMembership) {
         setSchoolId(firstMembership.schoolId);
       }
@@ -79,11 +76,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="mb-8 flex justify-center">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 text-base font-bold text-white shadow-lg shadow-brand-500/30">
-              SB
-            </span>
-            <span className="text-xl font-semibold text-gray-900">SchoolBridge</span>
+          <Link href="/" className="flex items-center" aria-label="SchoolBridge home">
+            <Logo kind="lockup" color="brand" height={58} priority />
           </Link>
         </div>
 

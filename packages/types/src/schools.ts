@@ -22,7 +22,8 @@ export const UpdateSchoolDto = z.object({
 export type UpdateSchoolDto = z.infer<typeof UpdateSchoolDto>;
 
 export const AddMemberDto = z.object({
-  userId: z.string().uuid(),
+  // IDs are cuids, not uuids.
+  userId: z.string().min(1),
   role: z.enum(['SCHOOL_ADMIN', 'CLASS_TEACHER', 'TEACHER', 'PARENT']),
 });
 export type AddMemberDto = z.infer<typeof AddMemberDto>;

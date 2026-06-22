@@ -12,23 +12,21 @@ import {
 } from '@schoolbridge/types';
 import { api } from './client';
 
-export interface LoginResponse {
-  tokens: AuthTokens;
-  user: SessionUser;
-}
+/** The API returns AuthTokens from login/verify; the user is fetched separately. */
+export type LoginResponse = AuthTokens;
 
 export const authApi = {
-  /** Phone + password login */
-  login: (dto: LoginDto): Promise<LoginResponse> =>
-    api.post<LoginResponse>('/auth/login', dto),
+  /** Phone + password login → tokens */
+  login: (dto: LoginDto): Promise<AuthTokens> =>
+    api.post<AuthTokens>('/auth/login', dto),
 
   /** Request a 6-digit OTP via SMS */
   requestOtp: (dto: RequestOtpDto): Promise<{ message: string }> =>
-    api.post('/auth/otp/request', dto),
+    api.post('/auth/request-otp', dto),
 
-  /** Verify OTP and get tokens */
-  verifyOtp: (dto: VerifyOtpDto): Promise<LoginResponse> =>
-    api.post<LoginResponse>('/auth/otp/verify', dto),
+  /** Verify OTP → tokens */
+  verifyOtp: (dto: VerifyOtpDto): Promise<AuthTokens> =>
+    api.post<AuthTokens>('/auth/verify-otp', dto),
 
   /** Refresh access token using refresh token */
   refresh: (refreshToken: string): Promise<AuthTokens> =>
@@ -36,7 +34,4 @@ export const authApi = {
 
   /** Get current session user */
   me: (): Promise<SessionUser> => api.get<SessionUser>('/auth/me'),
-
-  /** Revoke refresh token */
-  logout: (): Promise<void> => api.post('/auth/logout'),
 };

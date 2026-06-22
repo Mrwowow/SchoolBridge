@@ -24,6 +24,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { TenantGuard } from '../../common/guards/tenant.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CreateSchoolDto, UpdateSchoolDto, AddMemberDto } from '../../common/dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { SessionUser } from '@schoolbridge/types';
 
 @ApiTags('schools')
 @ApiBearerAuth('access-token')
@@ -38,8 +40,8 @@ export class SchoolsController {
   @UseGuards(RolesGuard)
   @Roles('SUPER_ADMIN')
   @ApiOperation({ summary: 'Create a new school (SUPER_ADMIN only)' })
-  create(@Body() body: CreateSchoolDto) {
-    return this.schoolsService.create(body);
+  create(@CurrentUser() user: SessionUser, @Body() body: CreateSchoolDto) {
+    return this.schoolsService.create(body, user.id);
   }
 
   @Get()
@@ -66,8 +68,12 @@ export class SchoolsController {
   @ApiHeader({ name: 'x-school-id', required: true })
   @ApiParam({ name: 'id', description: 'School ID' })
   @ApiOperation({ summary: 'Update school settings / plan / status' })
-  update(@Param('id') id: string, @Body() body: UpdateSchoolDto) {
-    return this.schoolsService.update(id, body);
+  update(
+    @Param('id') id: string,
+    @CurrentUser() user: SessionUser,
+    @Body() body: UpdateSchoolDto,
+  ) {
+    return this.schoolsService.update(id, body, user.id);
   }
 
   // ── Members ────────────────────────────────────────────────────────────

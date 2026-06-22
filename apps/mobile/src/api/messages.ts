@@ -1,70 +1,85 @@
 /**
  * src/api/messages.ts
- * Message-related API calls.
+ * Message / booklet API calls. All routes are school-scoped
+ * (/schools/:schoolId/messages/...); the client injects x-school-id and the
+ * path :schoolId is read from the auth store.
  */
-import type { CreateMessageDto, MessageReceiptView, Paginated } from '@schoolbridge/types';
-import type { MessageType } from '@schoolbridge/types';
+import type {
+  CreateMessageDto,
+  MessageReceiptView,
+  MessageAuthor,
+  Paginated,
+  MessageType,
+  InboxThreadView,
+  HomeworkStatusView,
+} from '@schoolbridge/types';
 import { api } from './client';
+import { schoolPath } from './tenant';
 
-/** A single digital-booklet entry returned by the API */
+/** A single digital-booklet entry returned by the API. */
 export interface MessageItem {
   id: string;
   type: MessageType;
   title: string;
   body: string | null;
   attachments: string[];
+  audioUrl: string | null;
   dueAt: string | null;
   createdAt: string;
-  sender: {
-    id: string;
-    fullName: string;
-  };
-  receipt: MessageReceiptView | null;
+  author: MessageAuthor;
+  /** Per-pupil receipt rows (present on the pupil feed / detail). */
+  receipts?: MessageReceiptView[];
   replyCount: number;
+  /** HOMEWORK only: has the feed's pupil submitted. */
+  submitted?: boolean;
 }
 
 export interface ReplyItem {
   id: string;
   body: string;
+  audioUrl: string | null;
   createdAt: string;
-  sender: {
-    id: string;
-    fullName: string;
-  };
+  author: MessageAuthor;
+}
+
+/** Single-message detail bundles its replies (no separate replies fetch). */
+export interface MessageDetail extends MessageItem {
+  replies: ReplyItem[];
 }
 
 export const messagesApi = {
-  /** Paginated feed for a specific pupil (parent view) */
-  getPupilFeed: (
-    pupilId: string,
-    cursor?: string,
-  ): Promise<Paginated<MessageItem>> =>
-    api.get(`/pupils/${pupilId}/messages`, {
-      ...(cursor ? { headers: { 'x-cursor': cursor } } : {}),
-    }),
-
-  /** Single message detail */
-  getMessage: (messageId: string): Promise<MessageItem> =>
-    api.get(`/messages/${messageId}`),
-
-  /** Threaded replies on a message */
-  getReplies: (
-    messageId: string,
-    cursor?: string,
-  ): Promise<Paginated<ReplyItem>> =>
+  /** Paginated booklet feed for a specific pupil (parent view). */
+  getPupilFeed: (pupilId: string, cursor?: string): Promise<Paginated<MessageItem>> =>
     api.get(
-      `/messages/${messageId}/replies${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+      schoolPath(
+        `/messages/pupil/${pupilId}${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+      ),
     ),
 
-  /** Post a reply */
-  postReply: (messageId: string, body: string): Promise<ReplyItem> =>
-    api.post(`/messages/${messageId}/replies`, { body }),
+  /** Single message detail (includes replies). */
+  getMessage: (messageId: string): Promise<MessageDetail> =>
+    api.get(schoolPath(`/messages/${messageId}`)),
 
-  /** Acknowledge a message (parent confirms they read it) */
-  acknowledge: (messageId: string): Promise<void> =>
-    api.post(`/messages/${messageId}/acknowledge`),
+  /** Post a reply (optionally a voice note). */
+  postReply: (messageId: string, body: string, audioUrl?: string): Promise<ReplyItem> =>
+    api.post(schoolPath(`/messages/${messageId}/replies`), { body, audioUrl }),
 
-  /** Teacher: create a new message / booklet entry */
-  createMessage: (dto: CreateMessageDto): Promise<MessageItem> =>
-    api.post('/messages', dto),
+  /** Acknowledge a message for a specific pupil (read + confirm). */
+  acknowledge: (messageId: string, pupilId: string): Promise<void> =>
+    api.post(schoolPath(`/messages/${messageId}/acknowledge/${pupilId}`)),
+
+  /** Mark a homework message submitted for a pupil. */
+  submitHomework: (messageId: string, pupilId: string): Promise<{ submitted: boolean }> =>
+    api.post(schoolPath(`/messages/${messageId}/submit`), { pupilId }),
+
+  /** Teacher: create a new booklet entry. */
+  createMessage: (dto: CreateMessageDto): Promise<{ id: string }> =>
+    api.post(schoolPath('/messages'), dto),
+
+  /** Teacher: conversation threads grouped by pupil. */
+  getInbox: (): Promise<InboxThreadView[]> => api.get(schoolPath('/messages/inbox')),
+
+  /** Teacher: homework submitted/total per assignment for a class. */
+  getHomeworkStatus: (classId: string): Promise<HomeworkStatusView[]> =>
+    api.get(schoolPath(`/messages/homework-status?classId=${classId}`)),
 };
